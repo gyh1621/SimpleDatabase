@@ -33,6 +33,13 @@ class FileHandle {
 private:
     std::fstream *handle;
 
+    /* get current file's size of bytes
+     *
+     * Won't check if a file is open
+     *
+     * */
+    std::streampos getFileSize() noexcept;
+
     /* write counters and page number to a hidden page
      *
      * Hidden page format:
@@ -69,7 +76,7 @@ public:
      *  0: set successfully
      *  1: a file is already opened
     */
-    RC setHandle(std::fstream &f);
+    RC setHandle(std::fstream *f);
 
     /* Release file handle
      * Return:
@@ -79,8 +86,13 @@ public:
     RC releaseHandle();
 
 
-    RC readPage(PageNum pageNum, void *data);                           // Get a specific page
-    RC writePage(PageNum pageNum, const void *data);                    // Write a specific page
+    /* Get a specific page
+     * Return:
+     *  0: success
+     *  -1: invalid page number
+     */
+    RC readPage(int pageNum, void *data);
+    RC writePage(int pageNum, const void *data);                    // Write a specific page
     RC appendPage(const void *data);                                    // Append a specific page
     unsigned getNumberOfPages();                                        // Get the number of pages in the file
     RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount,
