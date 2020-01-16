@@ -3,8 +3,14 @@
 import os
 import re
 import sys
-import platform
 import subprocess
+
+
+executable_dir = "cmake-build-debug"
+if not os.path.exists(executable_dir):
+    print(executable_dir, "not found")
+    sys.exit(1)
+os.chdir(executable_dir)
 
 
 def run_command(cmd):
@@ -15,84 +21,46 @@ def run_command(cmd):
     return output.decode(), error.decode(), process.returncode
 
 
-def check_gcc_version():
-    output, err, code = run_command("gcc --version")
-    if "5.5.0" in output:
-        print("GCC 5.5.0 installed")
-        print(output)
-        return True
-    else:
-        print("GCC 5.5.0 not installed")
-        print(output)
-        return False
+def print_test(test, output, err, code):
+    print("========= {} ==========".format(os.path.basename(test)))
+    print(output, end="")
+    if err:
+        print(err, end="")
+    print("Exit code:", code, end="\n\n")
 
 
-# install gcc 5.5.0 on Ubuntu 18.04
-distribution, version, _ = platform.linux_distribution()
-if distribution == "Ubuntu" and version == "18.04" and not check_gcc_version():
-    os.system("sudo apt update && sudo apt install -y gcc-5 g++-5")
-    os.system("sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 10")
-    os.system("sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 20")
-    os.system("sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 10")
-    os.system("sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 20")
-    os.system("sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc 30")
-    os.system("sudo update-alternatives --set cc /usr/bin/gcc")
-    os.system("sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++ 30")
-    os.system("sudo update-alternatives --set c++ /usr/bin/g++")
-    if not check_gcc_version():
-        print("Install GCC 5.5.0 failed")
-        sys.exit(1)
-else:
-    print("Not running on Ubuntu 18.04. GCC 5.5.0 will not be installed.")
-
-# cmake
-test_dir = "cmake-build-debug"
-if not os.path.exists(test_dir):
-    os.mkdir(test_dir)
-os.chdir(test_dir)
-output, err, code = run_command("cmake ..")
-print(output)
-print(err)
-if code != 0:
-    print("return code:", code)
-    sys.exit(1)
-output, err, code = run_command("cmake --build ./")
-print(output)
-print(err)
-if code != 0:
-    print("return code:", code)
-    sys.exit(1)
-
-# run test
-
-
-def print_test(test, output, err):
-    print("========= {} ==========".format(test))
-    print(output)
-    print(err)
-
-
-tests = []
-fail_tests = []
+tests, fail_tests, success_tests = [], [], []
 for f in os.listdir():
-    if re.match(".*?test[^\.]*?", f):
+    if os.path.isfile(f) and re.match(".*?test[^\.]*?", f) and os.access(f, os.X_OK):
         tests.append(os.path.abspath(f))
+tests.sort()
+print("ALL TESTS:")
+for test in tests:
+    print(test)
+
+# run tests
+print("Start running tests...")
 for i, test in enumerate(tests):
     print("Running {}/{} tests...".format(i + 1, len(tests)), end="\r")
     output, err, code = run_command(test)
     if code != 0 or err or "test case failed" in output.lower():
         fail_tests.append((test, output, err))
     else:
-        print_test(test, output, err)
+        success_tests.append((test, output, err))
+    print_test(test, output, err, code)
 
-print("\nFAILED TESTS:")
-for test, output, err in fail_tests:
-    print_test(test, output, err)
-
+print("=======================================")
+print("Success Tests:")
+for test, _, _ in success_tests:
+    print(os.path.basename(test))
+print("=======================================")
+print("Fail Tests:")
+for test, _, _ in fail_tests:
+    print(os.path.basename(test))
 print("=======================================")
 print(
     "TOTAL: {}, SUCCESS: {}, FAIL: {}".format(
-        len(tests), len(tests) - len(fail_tests), len(fail_tests)
+        len(tests), len(success_tests), len(fail_tests)
     )
 )
 
