@@ -1,4 +1,5 @@
 #include <fstream>
+#include <iostream>
 #include "pfm.h"
 
 PagedFileManager &PagedFileManager::instance() {
@@ -15,19 +16,56 @@ PagedFileManager::PagedFileManager(const PagedFileManager &) = default;
 PagedFileManager &PagedFileManager::operator=(const PagedFileManager &) = default;
 
 RC PagedFileManager::createFile(const std::string &fileName) {
-    return -1;
+    FILE* file = fopen(fileName.c_str(), "rb");
+    if(file != NULL){
+        fclose(file);
+        std::cout << "filename already exists" << std::endl;
+        return -1;
+    }
+
+    file = fopen(fileName.c_str(), "wb");
+    if(file == NULL){
+        fclose(file);
+        std::cout << "Creation fail" << std::endl;
+        return -1;
+    }
+
+    fclose(file);
+    return 0;
 }
 
 RC PagedFileManager::destroyFile(const std::string &fileName) {
-    return -1;
+    FILE* file = fopen(fileName.c_str(), "rb");
+    if(file == NULL){
+        fclose(file);
+        std::cout << "File not exists" << std::endl;
+        return -1;
+    }
+    fclose(file);
+    int r = remove(fileName.c_str());
+    if(r != 0){
+        std::cout << "Deletion fails" << std::endl;
+        return -1;
+    }
+
+    return 0;
 }
 
 RC PagedFileManager::openFile(const std::string &fileName, FileHandle &fileHandle) {
-    return -1;
+    FILE* file = fopen(fileName.c_str(), "rb");
+    if(file == NULL){
+        fclose(file);
+        std::cout << "File not exists" << std::endl;
+        return -1;
+    }
+    fclose(file);
+    std::fstream f;
+    f.open(fileName, std::ios::in | std::ios::out | std::ios::binary);
+    return fileHandle.setHandle(f);
 }
 
 RC PagedFileManager::closeFile(FileHandle &fileHandle) {
-    return -1;
+    return fileHandle.releaseHandle();
 }
 
 FileHandle::FileHandle() {
@@ -95,7 +133,7 @@ RC FileHandle::readPage(PageNum pageNum, void *data) {
     // TODO
     // add test: detect page num is valid
     pageNum += 1;  // because the hidden page is the first page
-    handle->seekp(pageNum * PAGE_SIZE, ios::beg);
+    handle->seekp(pageNum * PAGE_SIZE, std::ios::beg);
     handle->read((char*) data, PAGE_SIZE);
     readPageCounter++;
     return 0;
@@ -103,7 +141,7 @@ RC FileHandle::readPage(PageNum pageNum, void *data) {
 
 RC FileHandle::writePage(PageNum pageNum, const void *data) {
    pageNum += 1;
-   handle->seekp(pageNum * PAGE_SIZE, ios::beg);
+   handle->seekp(pageNum * PAGE_SIZE, std::ios::beg);
    handle->write((const char*) data, PAGE_SIZE);
    writePageCounter++;
    return 0;
@@ -111,7 +149,7 @@ RC FileHandle::writePage(PageNum pageNum, const void *data) {
 
 RC FileHandle::appendPage(const void *data) {
     totalPage += 1;
-    handle->seekp(0, ios::end);
+    handle->seekp(0, std::ios::end);
     handle->write((const char *) data, PAGE_SIZE);
     appendPageCounter++;
     return 0;
