@@ -36,7 +36,6 @@ RC PagedFileManager::createFile(const std::string &fileName) {
 RC PagedFileManager::destroyFile(const std::string &fileName) {
     FILE* file = fopen(fileName.c_str(), "rb");
     if(file == nullptr){
-        fclose(file);
         std::cout << "File not exists" << std::endl;
         return -1;
     }
@@ -51,6 +50,7 @@ RC PagedFileManager::destroyFile(const std::string &fileName) {
 }
 
 RC PagedFileManager::openFile(const std::string &fileName, FileHandle &fileHandle) {
+    if (fileHandle.isOccupied()) return 1;
     FILE* file = fopen(fileName.c_str(), "rb");
     if(file == nullptr){
         fclose(file);
@@ -60,12 +60,14 @@ RC PagedFileManager::openFile(const std::string &fileName, FileHandle &fileHandl
     fclose(file);
     std::fstream* f = new std::fstream;
     f->open(fileName, std::ios::in | std::ios::out | std::ios::binary);
-    return fileHandle.setHandle(f);
+    RC rc = fileHandle.setHandle(f);
+    f = nullptr;
+    delete(f);
+    return rc;
 }
 
 RC PagedFileManager::closeFile(FileHandle &fileHandle) {
-    fileHandle.releaseHandle();
-    return 0;
+    return fileHandle.releaseHandle();
 }
 
 FileHandle::FileHandle() {
@@ -77,7 +79,7 @@ FileHandle::FileHandle() {
 }
 
 FileHandle::~FileHandle() {
-    free(handle);
+    delete(handle);
 }
 
 std::streampos FileHandle::getFileSize() noexcept {
@@ -93,8 +95,14 @@ std::streampos FileHandle::getFileSize() noexcept {
 RC FileHandle::readHiddenPage(){
     void *data = malloc(PAGE_SIZE);
     RC rc = readPage(-1, data);
-    if (rc != 0) return 1;
-    if (*((char *) data) != 'Y') return 1;
+    if (rc != 0) {
+        free(data);
+        return 1;
+    }
+    if (*((char *) data) != 'Y') {
+        free(data);
+        return 1;
+    }
     readPageCounter = (unsigned) *((char *) data + sizeof(char));
     writePageCounter = (unsigned) *((char *) data + sizeof(char) + sizeof(unsigned));
     appendPageCounter = (unsigned) *((char *) data + sizeof(char) + sizeof(unsigned) * 2);
@@ -142,6 +150,10 @@ RC FileHandle::releaseHandle() {
         handle->close();
         return 0;
     }
+}
+
+bool FileHandle::isOccupied() {
+    return handle != nullptr;
 }
 
 RC FileHandle::readPage(int pageNum, void *data) {

@@ -85,6 +85,8 @@ public:
      */
     RC releaseHandle();
 
+    /* Return handler status */
+    bool isOccupied();
 
     /* Get a specific page
      * Return:
