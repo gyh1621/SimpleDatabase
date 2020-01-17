@@ -95,6 +95,7 @@ public:
      */
     RC readPage(int pageNum, void *data);
     RC writePage(int pageNum, const void *data);                    // Write a specific page
+
     RC appendPage(const void *data);                                    // Append a specific page
     unsigned getNumberOfPages();                                        // Get the number of pages in the file
     RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount,

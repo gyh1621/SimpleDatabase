@@ -76,6 +76,22 @@ public:
 
     RC closeFile(FileHandle &fileHandle);                               // Close a record-based file
 
+    /* Build a new page
+     *
+     * Page format:
+     * ----------------
+     * DATA SECTION
+     * ----------------
+     * SLOT DIRECTORY | SLOT NUMBER | FREE SPACE
+     * ----------------
+     *
+     * SLOT DIRECTORY: OFFSET, LENGTH | ... | ...
+     *
+     * Return:
+     *  0: success
+     */
+    RC makePage(const void *data) noexcept;
+
     //  Format of the data passed into the function is the following:
     //  [n byte-null-indicators for y fields] [actual value for the first field] [actual value for the second field] ...
     //  1) For y fields, there is n-byte-null-indicators in the beginning of each record.

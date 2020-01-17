@@ -29,6 +29,14 @@ RC RecordBasedFileManager::closeFile(FileHandle &fileHandle) {
     return -1;
 }
 
+RC RecordBasedFileManager::makePage(const void *data) noexcept {
+    int slotNumberOffset = PAGE_SIZE - sizeof(unsigned) * 2;
+    *((unsigned *) ((char *) data + slotNumberOffset)) = 0;
+    int freeSpaceOffset = slotNumberOffset + sizeof(unsigned);
+    *((unsigned *) ((char *) data + freeSpaceOffset)) = PAGE_SIZE - 2 * sizeof(unsigned);
+    return 0;
+}
+
 RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                         const void *data, RID &rid) {
     return -1;
