@@ -94,6 +94,7 @@ std::streampos FileHandle::getFileSize() noexcept {
 
 RC FileHandle::readHiddenPage(){
     void *data = malloc(PAGE_SIZE);
+    if (data == nullptr) throw std::bad_alloc();
     RC rc = readPage(-1, data);
     if (rc != 0) {
         free(data);
@@ -115,6 +116,7 @@ RC FileHandle::writeHiddenPage() {
     if (handle == nullptr) return 1;
     //void *data = malloc(sizeof(unsigned) * 3 + sizeof(char) + sizeof(PageNum));
     void *data = malloc(PAGE_SIZE);
+    if (data == nullptr) throw std::bad_alloc();
     *((char *) data) = 'Y';
     *(unsigned *)((char *) data + sizeof(char)) = readPageCounter;
     *(unsigned *)((char *) data + sizeof(char) + sizeof(unsigned)) = writePageCounter;

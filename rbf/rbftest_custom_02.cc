@@ -14,6 +14,7 @@ int RBFTest_Custom_2(RecordBasedFileManager &rbfm) {
 
     // build a new page
     void* data = malloc(PAGE_SIZE);
+    if (data == nullptr) throw std::bad_alloc();
     rc = rbfm.makePage(data);
     assert(rc == success && "Init page should not fail");
 
