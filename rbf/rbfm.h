@@ -65,6 +65,15 @@ public:
 };
 
 class RecordBasedFileManager {
+private:
+
+    /* Get first page with larger free size
+     * Return:
+     *  0: success
+     *  -1: fail
+     */
+    RC getFirstPageAvailable(FileHandle &fileHandle, const int &freeSize, PageNum &pageNum, void *data);
+
 public:
     static RecordBasedFileManager &instance();                          // Access to the _rbf_manager instance
 
@@ -75,22 +84,6 @@ public:
     RC openFile(const std::string &fileName, FileHandle &fileHandle);   // Open a record-based file
 
     RC closeFile(FileHandle &fileHandle);                               // Close a record-based file
-
-    /* Build a new page
-     *
-     * Page format:
-     * ----------------
-     * DATA SECTION
-     * ----------------
-     * SLOT DIRECTORY | SLOT NUMBER | FREE SPACE
-     * ----------------
-     *
-     * SLOT DIRECTORY: OFFSET, LENGTH | ... | ...
-     *
-     * Return:
-     *  0: success
-     */
-    RC makePage(const void *data) noexcept;
 
     //  Format of the data passed into the function is the following:
     //  [n byte-null-indicators for y fields] [actual value for the first field] [actual value for the second field] ...
@@ -151,6 +144,124 @@ protected:
     RecordBasedFileManager(const RecordBasedFileManager &);                     // Prevent construction by copying
     RecordBasedFileManager &operator=(const RecordBasedFileManager &);          // Prevent assignment
 
+};
+
+class Record {
+
+    /*
+     * Record Format:
+     * ┌────────────────┬──────────────────────┬─────────────────────────┐
+     * │  RecordHeader  │     OffsetSection    │        FieldData        │
+     * ├────────────────┼──────────────────────┼─────────────────────────┤
+     * │  Field Number  │  offset, ..., offset │ Field 1 | ... | Field N │
+     * │ unsigned short │    unsigned short    │ ......................  │
+     * └────────────────┴──────────────────────┴─────────────────────────┘
+     *
+     * Note: 1. null field will not occupy a "Field" data space
+     *          but will still occupy a "field offset" space and the offset is '0'
+     *       2. varchar's length will be stored as 2 bytes data, so current maximum length of varchar is 65536
+     *       3. offset points to end of the data
+     */
+
+    static const unsigned short recordHeaderSize = sizeof(unsigned short);
+    typedef unsigned short FieldNumber;
+    typedef unsigned short FieldOffset;
+
+    /* Get a record's actual size in bytes from raw record data */
+    static int getRecordActualSize(const int &nullIndicatorSize, const std::vector<Attribute> &recordDescriptor, const void *data);
+
+    /* Get null indicator data's size by field number */
+    static int getNullIndicatorSize(const int &fieldNumber);
+
+    /* Examine a field is null or not, *data is raw record data
+     * Note: assume all arguments are valid.
+     * */
+    static bool isFieldNull(const int &fieldIndex, const void *nullIndicatorData);
+
+private:
+    int size;
+    void *record;
+    int offsetSectionOffset;  // offset to the start of offset section
+
+public:
+    Record(const std::vector<Attribute> &recordDescriptor, const void *data);
+    Record(const Record&) = delete;                                     // Copy constructor, implement when needed
+    Record(Record&&) = delete;                                          // Move constructor, implement when needed
+    Record& operator=(const Record&) = delete;                          // Copy assignment, implement when needed
+    Record& operator=(Record&&) = delete;                               // Move assignment, implement when needed
+    ~Record();
+
+    int getSize();
+    const void *getRecordData();
+};
+
+class Page {
+
+    /*
+     * Page format:
+     * ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+     * │ DATA SECTION: <Record>, <Record>, ....                                                                     │
+     * │                                                                                                            │
+     * │   ┌──────────────────────────────────┬────────────────┬─────────────────┬────────────────┬─────────────────┤
+     * │   │          SLOT DIRECTORY          │ RECORD NUMBER  │   SLOT NUMBER   │   FREE SPACE   │      Inited     │
+     * │   ├──────────────────────────────────┼────────────────┼─────────────────┼────────────────┼─────────────────┤
+     * │   │     <isPointer, offset, len>     │ record  number │   slot number   │   free bytes   │  init indicator │
+     * │   │ <bool, unsigned, unsigned short> │ unsigned short │  unsigned short │ unsigned short │       bool      │
+     * └───┴──────────────────────────────────┴────────────────┴─────────────────┴────────────────┴─────────────────┘
+     *
+     * Note: 1. slots expand from right to left.
+     *       2. when slot is a pointer: offset is page id, len is slot id
+     *       3. types of offset and len are same to RID's pageNum and slotNum
+     *       4. record offset points to the first byte of the record
+     */
+
+    typedef unsigned short FreeSpace;
+    typedef unsigned short SlotNumber;
+    typedef unsigned short RecordNumber;
+    typedef bool InitIndicator;
+    typedef bool SlotPointerIndicator;
+    typedef unsigned RecordOffset;
+    typedef unsigned short RecordLength;
+
+public:
+    static const unsigned short SlotSize = sizeof(RecordOffset) + sizeof(RecordLength) + sizeof(SlotPointerIndicator);
+    static const unsigned short InfoSize = sizeof(RecordNumber) + sizeof(SlotNumber) + sizeof(FreeSpace) + sizeof(InitIndicator);
+
+private:
+    void *page;
+    FreeSpace freeSpace;
+    SlotNumber slotNumber;
+    RecordNumber recordNumber;
+    bool passedData;
+    int freeSpaceOffset;    // start offset of free space
+
+    /* Get nth slot offset from page start
+     * n starts from 0 and from right to left
+     * */
+    int getNthSlotOffset(int n);
+
+    /* Parse a slot
+     * slot starts from 0 and from right to left
+     * */
+    void parseSlot(int slot, SlotPointerIndicator &isPointer, RecordOffset &recordOffset, RecordLength &recordLen);
+
+public:
+    Page();
+    // passed page data, will not be delete in destructor
+    Page(void *data, bool forceInit=false);
+    Page(const Page&) = delete;                                     // copy constructor, implement when needed
+    Page(Page&&) = delete;                                          // move constructor, implement when needed
+    Page& operator=(const Page&) = delete;                          // copy assignment, implement when needed
+    Page& operator=(Page&&) = delete;                               // move assignment, implement when needed
+    ~Page();
+
+    /* Insert a record into the page
+     * Return: slot id
+     */
+    int insertRecord(Record &record);
+
+    const void *getPageData();          // get page data
+    const int getFreeSpace();           // get free space
 };
 
 #endif // _rbfm_h_
