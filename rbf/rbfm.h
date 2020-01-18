@@ -182,8 +182,10 @@ private:
     int size;
     void *record;
     int offsetSectionOffset;  // offset to the start of offset section
-
+    int fieldNumber;
+    bool passedData;
 public:
+    Record(void* data);
     Record(const std::vector<Attribute> &recordDescriptor, const void *data);
     Record(const Record&) = delete;                                     // Copy constructor, implement when needed
     Record(Record&&) = delete;                                          // Move constructor, implement when needed
@@ -193,6 +195,7 @@ public:
 
     int getSize();
     const void *getRecordData();
+    void convertToRawData(const std::vector<Attribute> &recordDescriptor, void* data);
 };
 
 class Page {
@@ -245,6 +248,7 @@ private:
      * */
     void parseSlot(int slot, SlotPointerIndicator &isPointer, RecordOffset &recordOffset, RecordLength &recordLen);
 
+
 public:
     Page();
     // passed page data, will not be delete in destructor
@@ -259,6 +263,10 @@ public:
      * Return: slot id
      */
     int insertRecord(Record &record);
+
+    // if isPointer = true, recordOffset and recordLen returned as newPageId and newRcId
+    RC readRecord(const std::vector<Attribute> &recordDescriptor, void* data, SlotPointerIndicator &isPointer,
+                  RecordOffset &recordOffset, RecordLength & recordLen);
 
     const void *getPageData();          // get page data
     const int getFreeSpace();           // get free space
