@@ -186,7 +186,7 @@ RC FileHandle::appendPage(const void *data) {
     return 0;
 }
 
-unsigned FileHandle::getNumberOfPages() {
+int FileHandle::getNumberOfPages() {
     return totalPage;
 }
 
