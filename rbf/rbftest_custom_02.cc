@@ -13,21 +13,21 @@ int RBFTest_Custom_2(RecordBasedFileManager &rbfm) {
 
     RC rc;
 
-    // build a new page
-    void* data = malloc(PAGE_SIZE);
-    if (data == nullptr) throw std::bad_alloc();
-    rc = rbfm.makePage(data);
-    assert(rc == success && "Init page should not fail");
-
-    // check new page info data
-    int offset = PAGE_SIZE - sizeof(unsigned) * 2;
-    unsigned slotNum = *((unsigned * )((char*) data + offset));
-    offset += sizeof(unsigned);
-    unsigned freeBytes = *((unsigned * )((char*) data + offset));
-    assert(slotNum == 0 && "slotNum should be 0");
-    assert(freeBytes == PAGE_SIZE - sizeof(unsigned) * 2 && "free bytes should be 4088");
-
-    free(data);
+//    // build a new page
+//    void* data = malloc(PAGE_SIZE);
+//    if (data == nullptr) throw std::bad_alloc();
+//    rc = rbfm.makePage(data);
+//    assert(rc == success && "Init page should not fail");
+//
+//    // check new page info data
+//    int offset = PAGE_SIZE - sizeof(unsigned) * 2;
+//    unsigned slotNum = *((unsigned * )((char*) data + offset));
+//    offset += sizeof(unsigned);
+//    unsigned freeBytes = *((unsigned * )((char*) data + offset));
+//    assert(slotNum == 0 && "slotNum should be 0");
+//    assert(freeBytes == PAGE_SIZE - sizeof(unsigned) * 2 && "free bytes should be 4088");
+//
+//    free(data);
 
     // prepare a new record
     void *record = malloc(100);

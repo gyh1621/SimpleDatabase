@@ -319,29 +319,21 @@ Record::~Record() {
 //                                     Page Class
 // ========================================================================================
 
-Page::Page() : Page(page) { }
-
 Page::Page(void *data, bool forceInit) {
-    if (data == nullptr) {
-        // called from default constructor
-        page = malloc(PAGE_SIZE);
-        if (page == nullptr) throw std::bad_alloc();
-        passedData = false;
-    } else {
-        page = data;
-        passedData = true;
-    }
+    page = data;
+
     // Init page
     int recordNumberOffset = PAGE_SIZE - InfoSize;
     int slotNumberOffset = recordNumberOffset + sizeof(RecordNumber);
-    int freeSpaceOffset = slotNumberOffset + sizeof(SlotNumber);
+    // fucking
+    int freeSpaceNumberOffset = slotNumberOffset + sizeof(SlotNumber);
     int initIndicatorOffset = PAGE_SIZE - sizeof(InitIndicator);
     bool isInited = !forceInit && *((bool *) ((char *) page + initIndicatorOffset));
     if (isInited) {
         // read last info section
         recordNumber = *((RecordNumber *) ((char *) page + recordNumberOffset));
         slotNumber = *((SlotNumber *) ((char *) page + slotNumberOffset));
-        freeSpace = *((FreeSpace *) ((char *) page + freeSpaceOffset));
+        freeSpace = *((FreeSpace *) ((char *) page + freeSpaceNumberOffset));
     } else {
         // init page info
         recordNumber = 0;
@@ -351,7 +343,7 @@ Page::Page(void *data, bool forceInit) {
     }
     // compute free space start offset
     int slot = slotNumber - 1;
-    freeSpaceOffset = 0;
+    freeSpaceOffset = 0;  // TODO add test
     SlotPointerIndicator isPointer;
     RecordOffset recordOffset;
     RecordLength recordLength;
@@ -364,11 +356,7 @@ Page::Page(void *data, bool forceInit) {
     }
 }
 
-Page::~Page() {
-    if (!passedData) {
-        free(page);
-    }
-}
+Page::~Page() { }
 
 int Page::getNthSlotOffset(int n) {
 //    assert(n < slotNumber);

@@ -1,4 +1,6 @@
 #include <fstream>
+#include <cstring>
+#include <cassert>
 
 #ifndef _pfm_h_
 #define _pfm_h_
@@ -123,7 +125,8 @@ public:
     RC writePage(PageNum pageNum, const void *data, bool actual=false);
 
     RC appendPage(const void *data, bool dataPage=true);                // Append a specific page
-    int getNumberOfPages();                                             // Get the number of pages in the file
+    int getNumberOfPages();                                             // Get the number of data pages in the file
+    int getActualNumberOfPages();                                       // Get total number of pages
     RC collectCounterValues(Counter &readPageCount, Counter &writePageCount,
                             Counter &appendPageCount);                 // Put current counter values into variables
 };

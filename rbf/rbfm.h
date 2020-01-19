@@ -2,6 +2,8 @@
 #define _rbfm_h_
 
 #include <vector>
+#include <cstring>
+#include <cassert>
 #include "pfm.h"
 
 // Record ID
@@ -234,11 +236,11 @@ public:
     static const unsigned short InfoSize = sizeof(RecordNumber) + sizeof(SlotNumber) + sizeof(FreeSpace) + sizeof(InitIndicator);
 
 private:
+    bool isInited;
     void *page;
     FreeSpace freeSpace;
     SlotNumber slotNumber;
     RecordNumber recordNumber;
-    bool passedData;
     int freeSpaceOffset;    // start offset of free space
 
     /* Get nth slot offset from page start
@@ -253,7 +255,6 @@ private:
 
 
 public:
-    Page();
     // passed page data, will not be delete in destructor
     Page(void *data, bool forceInit=false);
     Page(const Page&) = delete;                                     // copy constructor, implement when needed

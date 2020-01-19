@@ -220,6 +220,10 @@ int FileHandle::getNumberOfPages() {
     return dataPageNum;
 }
 
+int FileHandle::getActualNumberOfPages() {
+    return totalPageNum;
+}
+
 RC FileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
     readPageCount = this->readPageCounter;
     writePageCount = this->writePageCounter;
