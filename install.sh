@@ -35,8 +35,12 @@ sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++ 30
 sudo update-alternatives --set c++ /usr/bin/g++
 if gcc --version | grep "5.5.0"; then
     echo "GCC 5.5.0 installed successfully."
-    exit 0
 else
     echo "ERROR: Install GCC 5.5.0 failed."
     exit 1
 fi
+
+# install valgrind
+sudo apt install -y valgrind
+
+exit 0

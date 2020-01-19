@@ -12,6 +12,16 @@ if not os.path.exists(executable_dir):
     sys.exit(1)
 os.chdir(executable_dir)
 
+valgrind_cmd = (
+    "G_SLICE=always-malloc G_DEBUG=gc-friendly  "
+    + "valgrind -v --tool=memcheck --leak-check=full --num-callers=40 {test_path}"
+)
+
+if len(sys.argv) > 1 and sys.argv[1] == "mem":
+    cmd = valgrind_cmd
+else:
+    cmd = "{test_path}"
+
 
 def run_command(cmd):
     process = subprocess.Popen(
@@ -31,7 +41,11 @@ def print_test(test, output, err, code):
 
 tests, fail_tests, success_tests = [], [], []
 for f in os.listdir():
-    if os.path.isfile(f) and re.match(".*?test[^\.]*?", f) and os.access(f, os.X_OK):
+    if (
+        os.path.isfile(f)
+        and re.match(".*?test[^\.]*?", f)
+        and os.access(f, os.X_OK)
+    ):
         tests.append(os.path.abspath(f))
 tests.sort()
 print("ALL TESTS:")
@@ -42,7 +56,7 @@ for test in tests:
 print("Start running tests...")
 for i, test in enumerate(tests):
     print("Running {}/{} tests...".format(i + 1, len(tests)), end="\r")
-    output, err, code = run_command(test)
+    output, err, code = run_command(cmd.format(test_path=test))
     if code != 0 or err or "test case failed" in output.lower():
         fail_tests.append((test, output, err))
     else:
