@@ -248,8 +248,8 @@ void Record::convertToRawData(const std::vector<Attribute> &recordDescriptor, vo
     auto* nullPointer = (unsigned char*)data;
     for (int i = 0; i < nullPointerSize; i++) nullPointer[i] = 0;
 
-    // jump over field number column
-    int startOffset = sizeof(FieldNumber);
+    // jump over record header
+    int startOffset = recordHeaderSize;
 
     // field offsets
     int lastFieldEndOffset = startOffset + fieldNumber * sizeof(FieldOffset);
@@ -277,33 +277,43 @@ void Record::convertToRawData(const std::vector<Attribute> &recordDescriptor, vo
 }
 
 void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
+
+    // TODO: add test to print more possible records
+
     int offsetSectionEnd = sizeof(FieldNumber);
-    int lastFieldend = sizeof(FieldNumber) + fieldNumber * sizeof(FieldOffset);
-    for(int i = 0; i < fieldNumber; i++){
+
+    // jump over record header
+    int startOffset = recordHeaderSize;
+
+    // field offsets
+    int lastFieldEndOffset = startOffset + fieldNumber * sizeof(FieldOffset);
+    int fieldEndOffset;
+
+    for (int i = 0; i < fieldNumber; i++) {
         Attribute attr = recordDescriptor[i];
         std::cout << attr.name << ": ";
-        int offsetValue = *((FieldOffset *)((char*)record + offsetSectionEnd));
-        if(offsetValue == 0){
+        fieldEndOffset = *((FieldOffset *)((char *)record + startOffset + sizeof(FieldOffset) * i));
+        int fieldLength = fieldEndOffset - lastFieldEndOffset;
+        if (fieldEndOffset == 0){
             std::cout << "NULL";
-        }else{
+        } else {
             switch(attr.type){
                 case AttrType::TypeInt:
-                    std::cout <<  *((int *)((char *)record + lastFieldend));
+                    std::cout <<  *((int *)((char *)record + lastFieldEndOffset));
                     break;
                 case AttrType::TypeReal:
-                    std::cout << *((float *)((char *)record + lastFieldend));
+                    std::cout << *((float *)((char *)record + lastFieldEndOffset));
                     break;
                 case AttrType::TypeVarChar:
-                    char* varchar = new char[attr.length];
-                    varchar = (char *)((char *)record + lastFieldend);
-                    std::string s(varchar);
+                    char* varchar = new char[fieldLength];
+                    memcpy(varchar, (char *) record + lastFieldEndOffset, fieldLength);
+                    std::string s(varchar, fieldLength);
                     std::cout << s;
                     break;
             }
-            lastFieldend = offsetValue;
-            offsetSectionEnd += sizeof(FieldOffset);
+            lastFieldEndOffset = fieldEndOffset;
         }
-        if(i == fieldNumber - 1){
+        if (i == fieldNumber - 1) {
             std::cout << "\n";
         } else {
             std::cout << " ";
