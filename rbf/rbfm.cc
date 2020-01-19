@@ -97,6 +97,7 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<
         Page p(targetPage);
         success = p.readRecord(recordDescriptor, data, isPointer, pageid, slotid);
     }
+    free(targetPage);
     return success;
 }
 
@@ -170,6 +171,7 @@ int Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<
 }
 
 Record::Record(const std::vector<Attribute> &recordDescriptor, const void *data) {
+    passedData = false;
     int fieldNum = recordDescriptor.size();
     int nullIndicatorSize = getNullIndicatorSize(fieldNum);
     this->size = getRecordActualSize(nullIndicatorSize, recordDescriptor, data);
@@ -309,6 +311,7 @@ void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
                     memcpy(varchar, (char *) record + lastFieldEndOffset, fieldLength);
                     std::string s(varchar, fieldLength);
                     std::cout << s;
+                    delete[](varchar);
                     break;
             }
             lastFieldEndOffset = fieldEndOffset;
@@ -322,7 +325,7 @@ void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
 }
 
 Record::~Record() {
-    if (this->record != nullptr && !passedData) free(this->record);
+    if (!passedData) free(this->record);
 };
 
 // ========================================================================================
