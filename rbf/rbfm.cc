@@ -106,6 +106,8 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const std::vecto
 }
 
 RC RecordBasedFileManager::printRecord(const std::vector<Attribute> &recordDescriptor, const void *data) {
+    Record r(recordDescriptor, data);
+    r.printRecord(recordDescriptor);
     return -1;
 }
 
@@ -272,7 +274,41 @@ void Record::convertToRawData(const std::vector<Attribute> &recordDescriptor, vo
             lastFieldEndOffset = fieldEndOffset;
         }
     }
+}
 
+void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
+    int offsetSectionEnd = sizeof(FieldNumber);
+    int lastFieldend = sizeof(FieldNumber) + fieldNumber * sizeof(FieldOffset);
+    for(int i = 0; i < fieldNumber; i++){
+        Attribute attr = recordDescriptor[i];
+        std::cout << attr.name << ": ";
+        int offsetValue = *((FieldOffset *)((char*)record + offsetSectionEnd));
+        if(offsetValue == 0){
+            std::cout << "NULL";
+        }else{
+            switch(attr.type){
+                case AttrType::TypeInt:
+                    std::cout <<  *((int *)((char *)record + lastFieldend));
+                    break;
+                case AttrType::TypeReal:
+                    std::cout << *((float *)((char *)record + lastFieldend));
+                    break;
+                case AttrType::TypeVarChar:
+                    char* varchar = new char[attr.length];
+                    varchar = (char *)((char *)record + lastFieldend);
+                    std::string s(varchar);
+                    std::cout << s;
+                    break;
+            }
+            lastFieldend = offsetValue;
+            offsetSectionEnd += sizeof(FieldOffset);
+        }
+        if(i == fieldNumber - 1){
+            std::cout << "\n";
+        } else {
+            std::cout << " ";
+        }
+    }
 }
 
 Record::~Record() {

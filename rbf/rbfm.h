@@ -183,7 +183,7 @@ private:
     void *record;
     int offsetSectionOffset;  // offset to the start of offset section
     int fieldNumber;
-    bool passedData;
+    bool passedData; // indicate whether record space is passed in or created in the class
 public:
     Record(void* data);
     Record(const std::vector<Attribute> &recordDescriptor, const void *data);
@@ -191,11 +191,14 @@ public:
     Record(Record&&) = delete;                                          // Move constructor, implement when needed
     Record& operator=(const Record&) = delete;                          // Copy assignment, implement when needed
     Record& operator=(Record&&) = delete;                               // Move assignment, implement when needed
+    // free malloc space if data is not passed in.
     ~Record();
 
     int getSize();
     const void *getRecordData();
+    // convert record from the implemented format to the given format
     void convertToRawData(const std::vector<Attribute> &recordDescriptor, void* data);
+    void printRecord(const std::vector<Attribute> &recordDescriptor);
 };
 
 class Page {
