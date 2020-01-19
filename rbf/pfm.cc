@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cmath>
 #include "pfm.h"
 
 PagedFileManager &PagedFileManager::instance() {
@@ -15,6 +16,8 @@ PagedFileManager::PagedFileManager(const PagedFileManager &) = default;
 PagedFileManager &PagedFileManager::operator=(const PagedFileManager &) = default;
 
 RC PagedFileManager::createFile(const std::string &fileName) {
+    // TODO: fix add test
+    std::cout << fileName.c_str() << std::endl;
     FILE* file = fopen(fileName.c_str(), "rb");
     if(file != nullptr){
         fclose(file);
@@ -74,7 +77,8 @@ FileHandle::FileHandle() {
     readPageCounter = 0;
     writePageCounter = 0;
     appendPageCounter = 0;
-    totalPage = 0;
+    totalPageNum = 1;  // hidden page
+    dataPageNum = 0;
     handle = nullptr;
 }
 
@@ -95,7 +99,7 @@ std::streampos FileHandle::getFileSize() noexcept {
 RC FileHandle::readHiddenPage(){
     void *data = malloc(PAGE_SIZE);
     if (data == nullptr) throw std::bad_alloc();
-    RC rc = readPage(-1, data);
+    RC rc = readPage(0, data, true);
     if (rc != 0) {
         free(data);
         return 1;
@@ -104,10 +108,11 @@ RC FileHandle::readHiddenPage(){
         free(data);
         return 1;
     }
-    readPageCounter = (unsigned) *((char *) data + sizeof(char));
-    writePageCounter = (unsigned) *((char *) data + sizeof(char) + sizeof(unsigned));
-    appendPageCounter = (unsigned) *((char *) data + sizeof(char) + sizeof(unsigned) * 2);
-    totalPage = (PageNum) *((char *) data + sizeof(char) + sizeof(unsigned) * 3);
+    readPageCounter = (Counter) *((char *) data + sizeof(char));
+    writePageCounter = (Counter) *((char *) data + sizeof(char) + sizeof(Counter));
+    appendPageCounter = (Counter) *((char *) data + sizeof(char) + sizeof(Counter) * 2);
+    totalPageNum = (PageNum) *((char *) data + sizeof(char) + sizeof(Counter) * 3);
+    dataPageNum = (PageNum) *((char *) data + sizeof(char) + sizeof(Counter) * 3 + sizeof(PageNum));
     free(data);
     return 0;
 }
@@ -118,11 +123,12 @@ RC FileHandle::writeHiddenPage() {
     void *data = malloc(PAGE_SIZE);
     if (data == nullptr) throw std::bad_alloc();
     *((char *) data) = 'Y';
-    *(unsigned *)((char *) data + sizeof(char)) = readPageCounter;
-    *(unsigned *)((char *) data + sizeof(char) + sizeof(unsigned)) = writePageCounter;
-    *(unsigned *)((char *) data + sizeof(char) + sizeof(unsigned) * 2) = appendPageCounter;
-    *(PageNum *)((char *) data + sizeof(char) + sizeof(unsigned) * 3) = totalPage;
-    writePage(-1, data);
+    *(Counter *)((char *) data + sizeof(char)) = readPageCounter;
+    *(Counter *)((char *) data + sizeof(char) + sizeof(Counter)) = writePageCounter;
+    *(Counter *)((char *) data + sizeof(char) + sizeof(Counter) * 2) = appendPageCounter;
+    *(PageNum *)((char *) data + sizeof(char) + sizeof(Counter) * 3) = totalPageNum;
+    *(PageNum *)((char *) data + sizeof(char) + sizeof(Counter) * 3 + sizeof(PageNum)) = dataPageNum;
+    writePage(0, data, true);
     free(data);
     return 0;
 }
@@ -137,6 +143,10 @@ RC FileHandle::setHandle(std::fstream *f) {
     if (readHiddenPage() != 0) {
         // write hidden page
         writeHiddenPage();
+        // write first FSP
+        void *fsp = malloc(PAGE_SIZE);
+        appendPage(fsp, false);
+        free(fsp);
     }
     return 0;
 }
@@ -158,9 +168,18 @@ bool FileHandle::isOccupied() {
     return handle != nullptr;
 }
 
-RC FileHandle::readPage(int pageNum, void *data) {
-    if (pageNum > 0 && pageNum >= totalPage) return -1;  // note: prevent negative int converting to unsigned
-    pageNum += 1;  // because the hidden page is the first page
+PageNum FileHandle::changeToActualPageNum(PageNum dataPageNum) {
+    dataPageNum += 1;  // hidden page
+    return ceil(float(dataPageNum) / PAGE_SIZE) + dataPageNum;
+}
+
+RC FileHandle::readPage(PageNum pageNum, void *data, bool actual) {
+    if (!actual) {
+        if (pageNum >= dataPageNum) return -1;
+        pageNum = changeToActualPageNum(pageNum);
+    } else {
+        if (pageNum >= totalPageNum) return -1;
+    }
     handle->clear();
     handle->seekg(pageNum * PAGE_SIZE, std::ios::beg);
     handle->read((char*) data, PAGE_SIZE);
@@ -168,9 +187,13 @@ RC FileHandle::readPage(int pageNum, void *data) {
     return 0;
 }
 
-RC FileHandle::writePage(int pageNum, const void *data) {
-    if (pageNum > 0 && pageNum >= totalPage) return -1;  // note: prevent negative int converting to unsigned
-    pageNum += 1;
+RC FileHandle::writePage(PageNum pageNum, const void *data, bool actual) {
+    if (!actual) {
+        if (pageNum >= dataPageNum) return -1;
+        pageNum = changeToActualPageNum(pageNum);
+    } else {
+        if (pageNum >= totalPageNum) return -1;
+    }
     handle->clear();
     handle->seekp(pageNum * PAGE_SIZE, std::ios::beg);
     handle->write((const char*) data, PAGE_SIZE);
@@ -178,16 +201,23 @@ RC FileHandle::writePage(int pageNum, const void *data) {
     return 0;
 }
 
-RC FileHandle::appendPage(const void *data) {
-    handle->seekp((totalPage + 1) * PAGE_SIZE, std::ios::beg);
+RC FileHandle::appendPage(const void *data, bool dataPage) {
+    if (dataPage) dataPageNum++;
+    handle->seekp(totalPageNum * PAGE_SIZE, std::ios::beg);
     handle->write((const char *) data, PAGE_SIZE);
     appendPageCounter++;
-    totalPage += 1;
+    totalPageNum++;
+    if (dataPage && dataPageNum % PAGE_SIZE == 0) {
+        // need to insert a new FSP TODO add tests
+        void *fsp = malloc(PAGE_SIZE);
+        appendPage(fsp, false);
+        free(fsp);
+    }
     return 0;
 }
 
 int FileHandle::getNumberOfPages() {
-    return totalPage;
+    return dataPageNum;
 }
 
 RC FileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
@@ -195,4 +225,24 @@ RC FileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePage
     writePageCount = this->writePageCounter;
     appendPageCount = this->appendPageCounter;
     return 0;
+}
+
+
+// ========================================================================================
+//                                 Free Space Page Class
+// ========================================================================================
+
+FreeSpacePage::FreeSpacePage(void *data) {
+    assert(data != nullptr);
+    page = data;
+}
+
+FreePageSpace FreeSpacePage::getFreeSpace(PageNum pageIndex) {
+    assert(pageIndex < PAGE_SIZE);
+    return *((FreePageSpace *) ((char *) page + pageIndex));
+}
+
+void FreeSpacePage::writeFreeSpace(PageNum pageIndex, FreePageSpace freePageSpace) {
+    assert(pageIndex < PAGE_SIZE);
+    *((FreePageSpace *) ((char *) page + pageIndex)) = freePageSpace;
 }
