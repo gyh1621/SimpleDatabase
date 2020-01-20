@@ -9,13 +9,45 @@ typedef unsigned PageNum;
 typedef int RC;
 
 typedef unsigned Counter;
-typedef char FreePageSpace;
+typedef char PageFreeSpacePercent;
 
 #define PAGE_SIZE 4096
 
 #include <string>
 
 class FileHandle;
+
+class FreeSpacePage {
+
+    /* Free Space Page Format:
+     *
+     * https://docs.microsoft.com/en-us/sql/relational-databases/pages-and-extents-architecture-guide?view=sql-server-ver15#tracking-free-space
+     *
+     * Every byte in a page indicates free space percentage in the corresponding page. Because only saves percentage,
+     * the free space left is only a estimated value. The percentage should be ceil of the accurate percentage,
+     * so the estimated free space is always larger than actual free space.
+     *
+     */
+
+private:
+    void *page;
+
+public:
+    FreeSpacePage() = default;
+    // passed page data, will not be delete in destructor
+    FreeSpacePage(void *data);
+    FreeSpacePage(const FreeSpacePage&) = delete;                                     // copy constructor, implement when needed
+    FreeSpacePage(FreeSpacePage&&) = delete;                                          // move constructor, implement when needed
+    FreeSpacePage& operator=(const FreeSpacePage&) = delete;                          // copy assignment, implement when needed
+    FreeSpacePage& operator=(FreeSpacePage&&) = delete;                               // move assignment, implement when needed
+    ~FreeSpacePage() = default;
+
+    void loadNewPage(void *data);       // load another fsp
+
+    // pageIndex indicates the page's index in this free space page, starts from 0
+    void writeFreeSpace(PageNum pageIndex, PageFreeSpacePercent freePageSpace);
+    PageFreeSpacePercent getFreeSpace(PageNum pageIndex);
+};
 
 class PagedFileManager {
 public:
@@ -37,6 +69,10 @@ protected:
 class FileHandle {
 private:
     std::fstream *handle;
+
+    void *fspData;
+    FreeSpacePage curFSP;
+    PageNum curFSPNum;
 
     /* get current file's size of bytes
      *
@@ -123,41 +159,28 @@ public:
      *  -1: invalid
      */
     RC writePage(PageNum pageNum, const void *data, bool actual=false);
+    /* here pageNum is always dataPageNum */
+    RC writePage(PageNum pageNum, const void *data, int freeSpace);
 
     RC appendPage(const void *data, bool dataPage=true);                // Append a specific page
+    RC appendPage(const void *data, int freeSpace);                     // Append a page with freeSpace specified
     int getNumberOfPages();                                             // Get the number of data pages in the file
     int getActualNumberOfPages();                                       // Get total number of pages
     RC collectCounterValues(Counter &readPageCount, Counter &writePageCount,
                             Counter &appendPageCount);                 // Put current counter values into variables
-};
 
-class FreeSpacePage {
+    /* pageNum below is always the data page number, starts from 0 */
 
-    /* Free Space Page Format:
-     *
-     * https://docs.microsoft.com/en-us/sql/relational-databases/pages-and-extents-architecture-guide?view=sql-server-ver15#tracking-free-space
-     *
-     * Every byte in a page indicates free space percentage in the corresponding page. Because only saves percentage,
-     * the free space left is only a estimated value. The percentage should be ceil of the accurate percentage,
-     * so the estimated free space is always larger than actual free space.
-     *
+    static void getFSPofPage(const PageNum &pageNum, PageNum &fspNum, PageNum &pageIndex);
+    /* update current FreeSpacePage member
+     * Return:
+     *  0: updated
+     *  -1: not updated
      */
-
-private:
-    void *page;
-
-public:
-    // passed page data, will not be delete in destructor
-    FreeSpacePage(void *data);
-    FreeSpacePage(const FreeSpacePage&) = delete;                                     // copy constructor, implement when needed
-    FreeSpacePage(FreeSpacePage&&) = delete;                                          // move constructor, implement when needed
-    FreeSpacePage& operator=(const FreeSpacePage&) = delete;                          // copy assignment, implement when needed
-    FreeSpacePage& operator=(FreeSpacePage&&) = delete;                               // move assignment, implement when needed
-    ~FreeSpacePage();
-
-    // pageIndex indicates the page's index in this free space page, starts from 0
-    void writeFreeSpace(PageNum pageIndex, FreePageSpace );
-    FreePageSpace getFreeSpace(PageNum pageIndex);
+    RC updateCurFSP(const PageNum &fspNum);
+    PageFreeSpacePercent getFreeSpacePercentOfPage(const PageNum pageNum);
+    void updateFreeSpacePercentOfPage(const PageNum pageNum, const PageFreeSpacePercent freePageSpace);
 };
+
 
 #endif

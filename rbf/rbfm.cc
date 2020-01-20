@@ -22,12 +22,17 @@ RC RecordBasedFileManager::getFirstPageAvailable(FileHandle &fileHandle, const i
     int totalPage = fileHandle.getNumberOfPages(), curPage = 0;
 
     // find a page large enough
+    PageFreeSpacePercent freePercent;
     while (curPage < totalPage) {
-        fileHandle.readPage(curPage, data);
-        Page page(data);
-        if (page.getFreeSpace() >= freeSize) {
-            pageNum = curPage;
-            return 0;
+        freePercent = fileHandle.getFreeSpacePercentOfPage(curPage);
+        if (PAGE_SIZE * freePercent >= freeSize) {
+            // load page to find out accurate free space
+            fileHandle.readPage(curPage, data);
+            Page page(data);
+            if (page.getFreeSpace() >= freeSize) {
+                pageNum = curPage;
+                return 0;
+            }
         }
         curPage++;
     }
@@ -68,7 +73,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vecto
         Page page(pageData, true);
         slotID = page.insertRecord(record);
         // write to file
-        fileHandle.appendPage(page.getPageData());
+        fileHandle.appendPage(page.getPageData(), page.getFreeSpace());
         pageNum = fileHandle.getNumberOfPages() - 1;
     } else {
         // find a page available
@@ -76,7 +81,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vecto
         //std::cout << "fina a page to insert needed size " << neededSize << " free space " << page.getFreeSpace() << std::endl; // debug
         slotID = page.insertRecord(record);
         // write to file
-        fileHandle.writePage(pageNum, page.getPageData());
+        fileHandle.writePage(pageNum, page.getPageData(), page.getFreeSpace());
     }
     //std::cout << "PAGE: " << pageNum << std::endl;  // debug
 

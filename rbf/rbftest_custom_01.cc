@@ -10,6 +10,7 @@ int RBFTest_Custom_1(PagedFileManager &pfm) {
     // 1. Open a file and passed to a file handler which is already a handler for some file
     // 2. Create a file with a name that is already for other files.
     // 3. Test inserting FSP and page number mapping
+    // 4. Test finding page's free space in FSP
     std::cout << std::endl << "***** In RBF Test Custom Case 01 *****" << std::endl;
 
     RC rc;
@@ -50,7 +51,34 @@ int RBFTest_Custom_1(PagedFileManager &pfm) {
     assert(fileHandle.getNumberOfPages() == 5000 && "Should be 5000 data pages in total");
     assert(fileHandle.getActualNumberOfPages() == 5000 + 1 + 2 && "Should be 5003 pages in total.");
     assert(fileHandle.changeToActualPageNum(4096) == 4099 && "Mapping to actual page number failed.");
+
+    // test finding a page's free space in fsp
+    PageNum fsp, pageIndex;
+    PageNum pageNum = 1;
+    fileHandle.getFSPofPage(pageNum, fsp, pageIndex);
+    std::cout << fsp << "\t" << pageIndex << std::endl;
+    assert(fsp == 1 && pageIndex == 1 && "finding fsp failed");
+    pageNum = 4098;
+    fileHandle.getFSPofPage(pageNum, fsp, pageIndex);
+    std::cout << fsp << "\t" << pageIndex << std::endl;
+    assert(fsp == 4098 && pageIndex == 2 && "finding fsp failed");
+
+    // test read free space
+    for (PageNum pageNum = 0; pageNum < fileHandle.getNumberOfPages(); pageNum++) {
+        PageFreeSpacePercent freePageSpace = fileHandle.getFreeSpacePercentOfPage(pageNum);
+        assert(freePageSpace == 0 && "free page space should be 4096 now");
+    }
+
+    // test write
+    fileHandle.updateFreeSpacePercentOfPage(1000, 90);
+    assert(fileHandle.getFreeSpacePercentOfPage(1000) == 90 && "free page space should be 1000 now");
+    fileHandle.updateFreeSpacePercentOfPage(4999, 10);
+    assert(fileHandle.getFreeSpacePercentOfPage(4999) == 10 && "free page space should be 1000 now");
+    fileHandle.updateFreeSpacePercentOfPage(4999, 100);
+    assert(fileHandle.getFreeSpacePercentOfPage(4999) == 100 && "free page space should be 1000 now");
+
     free(data);
+    fileHandle.releaseHandle();
 
     std::cout << "RBF Test Custom Case 01 Finished! The result will not be examined :)" << std::endl << std::endl;
 
