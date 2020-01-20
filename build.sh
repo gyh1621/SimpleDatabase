@@ -1,3 +1,3 @@
 mkdir cmake-build-debug
 cd cmake-build-debug
-cmake .. && cmake --build ./
+cmake -DCMAKE_CXX_FLAGS="-fsanitize=undefined,address -O1 -g  -fno-omit-frame-pointer" .. && cmake --build ./
