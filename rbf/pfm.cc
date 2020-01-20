@@ -107,11 +107,16 @@ RC FileHandle::readHiddenPage(){
         free(data);
         return 1;
     }
-    readPageCounter = *(Counter *)((char *) data + sizeof(char));
-    writePageCounter = *(Counter *)((char *) data + sizeof(char) + sizeof(Counter));
-    appendPageCounter = *(Counter *)((char *) data + sizeof(char) + sizeof(Counter) * 2);
-    totalPageNum = *(PageNum *)((char *) data + sizeof(char) + sizeof(Counter) * 3);
-    dataPageNum = *(PageNum *)((char *) data + sizeof(char) + sizeof(Counter) * 3 + sizeof(PageNum));
+    int offset = sizeof(char);
+    memcpy(&readPageCounter, (char *) data + offset, sizeof(Counter));
+    offset += sizeof(Counter);
+    memcpy(&writePageCounter, (char *) data + offset, sizeof(Counter));
+    offset += sizeof(Counter);
+    memcpy(&appendPageCounter, (char *) data + offset, sizeof(Counter));
+    offset += sizeof(Counter);
+    memcpy(&totalPageNum, (char *) data + offset, sizeof(PageNum));
+    offset += sizeof(PageNum);
+    memcpy(&dataPageNum, (char *) data + offset, sizeof(PageNum));
     free(data);
     return 0;
 }
@@ -122,11 +127,16 @@ RC FileHandle::writeHiddenPage() {
     void *data = malloc(PAGE_SIZE);
     if (data == nullptr) throw std::bad_alloc();
     *((char *) data) = 'Y';
-    *(Counter *)((char *) data + sizeof(char)) = readPageCounter;
-    *(Counter *)((char *) data + sizeof(char) + sizeof(Counter)) = writePageCounter;
-    *(Counter *)((char *) data + sizeof(char) + sizeof(Counter) * 2) = appendPageCounter;
-    *(PageNum *)((char *) data + sizeof(char) + sizeof(Counter) * 3) = totalPageNum;
-    *(PageNum *)((char *) data + sizeof(char) + sizeof(Counter) * 3 + sizeof(PageNum)) = dataPageNum;
+    int offset = sizeof(char);
+    memcpy((char *) data + offset, &readPageCounter, sizeof(Counter));
+    offset += sizeof(Counter);
+    memcpy((char *) data + offset, &writePageCounter, sizeof(Counter));
+    offset += sizeof(Counter);
+    memcpy((char *) data + offset, &appendPageCounter, sizeof(Counter));
+    offset += sizeof(Counter);
+    memcpy((char *) data + offset, &totalPageNum, sizeof(PageNum));
+    offset += sizeof(PageNum);
+    memcpy((char *) data + offset, &dataPageNum, sizeof(PageNum));
     writePage(0, data, true);
     free(data);
     return 0;

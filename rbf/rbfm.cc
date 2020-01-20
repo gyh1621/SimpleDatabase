@@ -144,7 +144,8 @@ int Record::getNullIndicatorSize(const int &fieldNumber) {
 bool Record::isFieldNull(const int &fieldIndex, const void *nullIndicatorData) {
     // get the byte field-bit inside
     int byteIndex = fieldIndex / 8;
-    unsigned nullIndicator = *((unsigned *) ((char *) nullIndicatorData + byteIndex));
+    unsigned nullIndicator;
+    memcpy(&nullIndicator, (char *) nullIndicatorData + byteIndex, sizeof(unsigned));
     // get field bit's index in the byte
     unsigned fieldBitIndex = 8 - fieldIndex % 8 - 1;
     // get field bit
@@ -158,6 +159,7 @@ int Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<
     int offset = nullIndicatorSize;
 
     // add fields' data size
+    auto *charLength = new unsigned;
     for (auto it = recordDescriptor.begin(); it != recordDescriptor.end(); it++) {
         int fieldIndex = std::distance(recordDescriptor.begin(), it);
         if (isFieldNull(fieldIndex, data)) continue;
@@ -165,12 +167,14 @@ int Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<
             case AttrType::TypeInt: size += sizeof(int); offset += sizeof(int); break;
             case AttrType::TypeReal: size += sizeof(float); offset += sizeof(int); break;
             case AttrType::TypeVarChar:
-                unsigned charLength = *((unsigned *) ((char *) data + offset));  // 4 bytes in raw data
-                size += charLength;
-                offset += sizeof(unsigned) + charLength;
+                memcpy(charLength, (char *) data + offset, sizeof(unsigned));
+                //unsigned charLength = *((unsigned *) ((char *) data + offset));  // 4 bytes in raw data
+                size += *charLength;
+                offset += sizeof(unsigned) + *charLength;
                 break;
         }
     }
+    delete(charLength);
 
     return size;
 }
@@ -200,6 +204,7 @@ Record::Record(const std::vector<Attribute> &recordDescriptor, const void *data)
 
     // copying fields
     bool nullBit;
+    auto *varcharLength = new unsigned;
     for (auto it = recordDescriptor.begin(); it != recordDescriptor.end(); it++) {
         int index = std::distance(recordDescriptor.begin(), it);  // field index
         nullBit = isFieldNull(index, data);  // get null bit
@@ -220,16 +225,17 @@ Record::Record(const std::vector<Attribute> &recordDescriptor, const void *data)
                 offset2 += it->length;
             } else if (type == AttrType::TypeVarChar) {
                 // read length byte
-                unsigned varcharLength = *((unsigned *) ((char *) data + offset2));
+                memcpy(varcharLength, (char *) data + offset2, sizeof(unsigned));
                 offset2 += sizeof(unsigned);
                 // copy varchar
-                memcpy((char *) record + offset1, (char *) data + offset2, varcharLength);
-                offset1 += varcharLength;
-                offset2 += varcharLength;
+                memcpy((char *) record + offset1, (char *) data + offset2, *varcharLength);
+                offset1 += *varcharLength;
+                offset2 += *varcharLength;
             }
             *((FieldOffset *)((char *) record + currentFieldOffsetPos)) = (FieldOffset) offset1;
         }
     }
+    delete(varcharLength);
 
     assert(this->size == offset1);
 }
@@ -274,7 +280,7 @@ void Record::convertToRawData(const std::vector<Attribute> &recordDescriptor, vo
             nullPointer[byteNum] |= ((char) 1) << (8 - (i % 8) - 1);
         } else {  // data field
             if (attr.type == AttrType::TypeVarChar) {
-                *((unsigned *)((char*)data + dataOffset)) = fieldLength;
+                memcpy((char*)data + dataOffset, &fieldLength, sizeof(unsigned));
                 dataOffset += 4;
             }
             memcpy((char*)data + dataOffset, (char *)record + lastFieldEndOffset, fieldLength);
@@ -292,6 +298,8 @@ void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
     int lastFieldEndOffset = startOffset + fieldNumber * sizeof(FieldOffset);
     int fieldEndOffset;
 
+    int intAttrVal;
+    float realAttrVal;
     for (int i = 0; i < fieldNumber; i++) {
         Attribute attr = recordDescriptor[i];
         std::cout << attr.name << ": ";
@@ -302,10 +310,12 @@ void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
         } else {
             switch(attr.type){
                 case AttrType::TypeInt:
-                    std::cout <<  *((int *)((char *)record + lastFieldEndOffset));
+                    memcpy(&intAttrVal, (char *)record + lastFieldEndOffset, sizeof(int));
+                    std::cout << intAttrVal;
                     break;
                 case AttrType::TypeReal:
-                    std::cout << *((float *)((char *)record + lastFieldEndOffset));
+                    memcpy(&realAttrVal, (char *)record + lastFieldEndOffset, sizeof(float));
+                    std::cout << realAttrVal;
                     break;
                 case AttrType::TypeVarChar:
                     char* varchar = new char[fieldLength];
@@ -345,9 +355,9 @@ Page::Page(void *data, bool forceInit) {
     bool isInited = !forceInit && *((bool *) ((char *) page + initIndicatorOffset));
     if (isInited) {
         // read last info section
-        recordNumber = *((RecordNumber *) ((char *) page + recordNumberOffset));
-        slotNumber = *((SlotNumber *) ((char *) page + slotNumberOffset));
-        freeSpace = *((FreeSpace *) ((char *) page + freeSpaceNumberOffset));
+        memcpy(&recordNumber, (char *) page + recordNumberOffset, sizeof(RecordNumber));
+        memcpy(&slotNumber, (char *) page + slotNumberOffset, sizeof(SlotNumber));
+        memcpy(&freeSpace, (char *) page + freeSpaceNumberOffset, sizeof(FreeSpace));
     } else {
         // init page info
         recordNumber = 0;
@@ -383,9 +393,9 @@ void Page::parseSlot(int slot, Page::SlotPointerIndicator &isPointer, Page::Reco
     int slotOffset = getNthSlotOffset(slot);
     isPointer = *(SlotPointerIndicator *)((char *) page + slotOffset);
     slotOffset += sizeof(SlotPointerIndicator);
-    recordOffset = *(RecordOffset *)((char *) page + slotOffset);
+    memcpy(&recordOffset, (char *) page + slotOffset, sizeof(RecordOffset));
     slotOffset += sizeof(RecordOffset);
-    recordLen = *(RecordLength *)((char *)page + slotOffset);
+    memcpy(&recordLen, (char *) page + slotOffset, sizeof(RecordLength));
 }
 
 int Page::insertRecord(Record &record) {
@@ -404,9 +414,10 @@ int Page::insertRecord(Record &record) {
     //std::cout << " SLOT at: " << offset << " end: " << offset + SlotSize << "\t";  // debug
     *((SlotPointerIndicator *) ((char *) page + offset)) = false;
     offset += sizeof(SlotPointerIndicator);
-    *((RecordOffset *) ((char *) page + offset)) = startOffset;
+    memcpy((char *) page + offset, &startOffset, sizeof(RecordOffset));
     offset += sizeof(RecordOffset);
-    *((RecordLength *) ((char *) page + offset)) = record.getSize();
+    int recordSize = record.getSize();
+    memcpy((char *) page + offset, &recordSize, sizeof(RecordLength));
     slotNumber++;
     return slotNumber - 1;  // slot index starts from 0
 }
@@ -434,11 +445,11 @@ RC Page::readRecord(const std::vector<Attribute> &recordDescriptor, void* data,
 
 const void * Page::getPageData() {
     int offset = PAGE_SIZE - InfoSize;
-    *((RecordNumber *) ((char *) page + offset)) = recordNumber;
+    memcpy((char *) page + offset, &recordNumber, sizeof(RecordNumber));
     offset += sizeof(RecordNumber);
-    *((SlotNumber *) ((char *) page + offset)) = slotNumber;
+    memcpy((char *) page + offset, &slotNumber, sizeof(SlotNumber));
     offset += sizeof(slotNumber);
-    *((FreeSpace *) ((char *) page + offset)) = freeSpace;
+    memcpy((char *) page + offset, &freeSpace, sizeof(FreeSpace));
     return page;
 }
 
