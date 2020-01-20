@@ -8,6 +8,7 @@
 int RBFTest_Custom_1(PagedFileManager &pfm) {
     // Functions Tested:
     // 1. Open a file and passed to a file handler which is already a handler for some file
+    // 2. Create a file with a name that is already for other files.
     std::cout << std::endl << "***** In RBF Test Custom Case 01 *****" << std::endl;
 
     RC rc;
@@ -26,6 +27,10 @@ int RBFTest_Custom_1(PagedFileManager &pfm) {
 
     rc = createFileShouldSucceed(fileName2);
     assert(rc == success && "Creating the file failed.");
+
+    // test create file with same name;
+    rc = pfm.createFile(fileName1);
+    assert(rc != success && "Creating a file with name already exists should fail.");
 
     // Open the file
     FileHandle fileHandle;

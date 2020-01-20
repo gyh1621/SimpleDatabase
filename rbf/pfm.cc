@@ -16,7 +16,6 @@ PagedFileManager::PagedFileManager(const PagedFileManager &) = default;
 PagedFileManager &PagedFileManager::operator=(const PagedFileManager &) = default;
 
 RC PagedFileManager::createFile(const std::string &fileName) {
-    // TODO: fix add test
     std::cout << fileName.c_str() << std::endl;
     FILE* file = fopen(fileName.c_str(), "rb");
     if(file != nullptr){
