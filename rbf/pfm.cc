@@ -107,11 +107,11 @@ RC FileHandle::readHiddenPage(){
         free(data);
         return 1;
     }
-    readPageCounter = (Counter) *((char *) data + sizeof(char));
-    writePageCounter = (Counter) *((char *) data + sizeof(char) + sizeof(Counter));
-    appendPageCounter = (Counter) *((char *) data + sizeof(char) + sizeof(Counter) * 2);
-    totalPageNum = (PageNum) *((char *) data + sizeof(char) + sizeof(Counter) * 3);
-    dataPageNum = (PageNum) *((char *) data + sizeof(char) + sizeof(Counter) * 3 + sizeof(PageNum));
+    readPageCounter = *(Counter *)((char *) data + sizeof(char));
+    writePageCounter = *(Counter *)((char *) data + sizeof(char) + sizeof(Counter));
+    appendPageCounter = *(Counter *)((char *) data + sizeof(char) + sizeof(Counter) * 2);
+    totalPageNum = *(PageNum *)((char *) data + sizeof(char) + sizeof(Counter) * 3);
+    dataPageNum = *(PageNum *)((char *) data + sizeof(char) + sizeof(Counter) * 3 + sizeof(PageNum));
     free(data);
     return 0;
 }
@@ -159,6 +159,8 @@ RC FileHandle::releaseHandle() {
         writePageCounter += 1;  // need to count the last write
         writeHiddenPage();
         handle->close();
+        delete(handle);
+        handle = nullptr;
         return 0;
     }
 }

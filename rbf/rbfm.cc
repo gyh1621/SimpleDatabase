@@ -64,6 +64,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vecto
 
     if (rc != 0) {
         // fail to find a page available, create a new page
+        //std::cout << "create new page to insert needed size " << neededSize << std::endl;  //debug
         Page page(pageData, true);
         slotID = page.insertRecord(record);
         // write to file
@@ -72,10 +73,12 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vecto
     } else {
         // find a page available
         Page page(pageData);
+        //std::cout << "fina a page to insert needed size " << neededSize << " free space " << page.getFreeSpace() << std::endl; // debug
         slotID = page.insertRecord(record);
         // write to file
         fileHandle.writePage(pageNum, page.getPageData());
     }
+    //std::cout << "PAGE: " << pageNum << std::endl;  // debug
 
     rid.pageNum = pageNum;
     rid.slotNum = slotID;
@@ -92,11 +95,13 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<
     void* targetPage = malloc(PAGE_SIZE);
     bool isPointer = true;
     RC success = 1;
+
     while(isPointer){
         fileHandle.readPage(pageid, targetPage);
         Page p(targetPage);
         success = p.readRecord(recordDescriptor, data, isPointer, pageid, slotid);
     }
+    //std::cout << "PAGE " << pageid << " SLOT " << slotid << std::endl;  // debug
     free(targetPage);
     return success;
 }
@@ -231,9 +236,10 @@ Record::Record(const std::vector<Attribute> &recordDescriptor, const void *data)
 
 Record::Record(void* data){
     passedData = true;
+    // TODO: wrong
     this->size = sizeof(data);
     this->record = data;
-    FieldNumber headerNum = *((FieldNumber *)((char *)data));
+    FieldNumber headerNum = *(FieldNumber *) data;
     this->fieldNumber = headerNum;
     this->offsetSectionOffset = sizeof(FieldNumber) * (headerNum + 1);
 }
@@ -317,7 +323,7 @@ void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
             lastFieldEndOffset = fieldEndOffset;
         }
         if (i == fieldNumber - 1) {
-            std::cout << "\n";
+            std::cout << std::endl;
         } else {
             std::cout << " ";
         }
@@ -351,7 +357,7 @@ Page::Page(void *data, bool forceInit) {
         // init page info
         recordNumber = 0;
         slotNumber = 0;
-        freeSpace = slotNumberOffset;
+        freeSpace = PAGE_SIZE - InfoSize;
         *((bool *) ((char *) page + initIndicatorOffset)) = true;
     }
     // compute free space start offset
@@ -363,7 +369,8 @@ Page::Page(void *data, bool forceInit) {
     while (slot >= 0) {
         parseSlot(slot, isPointer, recordOffset, recordLength);
         if (!isPointer) {
-            freeSpaceOffset = recordOffset + 1;
+            freeSpaceOffset = recordOffset + recordLength;
+            break;
         }
         slot--;
     }
@@ -390,12 +397,16 @@ int Page::insertRecord(Record &record) {
     // insert record
     int startOffset = freeSpaceOffset;
     memcpy((char *) page + freeSpaceOffset, record.getRecordData(), record.getSize());
+    //std::cout << "Insert one record " << "at: " << startOffset  // debug
+    //          << " end:" << startOffset + record.getSize() << "\t";
     recordNumber++;
     // update free space
     freeSpaceOffset += record.getSize();
     freeSpace -= record.getSize();
+    freeSpace -= SlotSize;
     // insert the corresponding slot
     int offset = getNthSlotOffset(slotNumber);
+    //std::cout << " SLOT at: " << offset << " end: " << offset + SlotSize << "\t";  // debug
     *((SlotPointerIndicator *) ((char *) page + offset)) = false;
     offset += sizeof(SlotPointerIndicator);
     *((RecordOffset *) ((char *) page + offset)) = startOffset;
@@ -406,9 +417,14 @@ int Page::insertRecord(Record &record) {
 }
 
 RC Page::readRecord(const std::vector<Attribute> &recordDescriptor, void* data,
-                    bool &isPointer, unsigned &offset, unsigned short &length){
-    parseSlot(length,isPointer, offset, length);
+                    bool &isPointer, unsigned &pageNum, unsigned short &slotNum){
+    RecordOffset offset;
+    RecordLength length;
+
+    parseSlot(slotNum,isPointer, offset, length);
     if(isPointer){
+        pageNum = offset;
+        slotNum = length;
         return -1;
     }
 
@@ -417,6 +433,7 @@ RC Page::readRecord(const std::vector<Attribute> &recordDescriptor, void* data,
     Record r(record);
     r.convertToRawData(recordDescriptor, data);
     free(record);
+    //std::cout << "Read one record at " << offset << " end " << offset + length << "\t"; // debug
     return 0;
 }
 
