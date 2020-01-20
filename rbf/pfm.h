@@ -109,7 +109,7 @@ public:
      * Actual Page Number = (Data Page Number + 1) + floor((Data Page Number + 1) / (float) PAGE_SIZE)
      *
      */
-    PageNum changeToActualPageNum(PageNum dataPageNum);
+    static PageNum changeToActualPageNum(PageNum dataPageNum);
 
     /* Get a specific page
      * Return:

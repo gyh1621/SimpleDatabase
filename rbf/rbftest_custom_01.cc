@@ -9,6 +9,7 @@ int RBFTest_Custom_1(PagedFileManager &pfm) {
     // Functions Tested:
     // 1. Open a file and passed to a file handler which is already a handler for some file
     // 2. Create a file with a name that is already for other files.
+    // 3. Test inserting FSP and page number mapping
     std::cout << std::endl << "***** In RBF Test Custom Case 01 *****" << std::endl;
 
     RC rc;
@@ -41,7 +42,18 @@ int RBFTest_Custom_1(PagedFileManager &pfm) {
     rc = pfm.openFile(fileName2, fileHandle);
     assert(rc != success && "Opening a file using a handler which is already a handler for some file should failed");
 
-    std::cout << "RBF Test Custom Case 01 Finished! The result will not be examined :)." << std::endl << std::endl;
+    // Insert 5000 pages and testing FSP inserting
+    void *data = malloc(PAGE_SIZE);
+    for (int i = 0; i < 5000; i++) {
+        fileHandle.appendPage(data);
+    }
+    assert(fileHandle.getNumberOfPages() == 5000 && "Should be 5000 data pages in total");
+    assert(fileHandle.getActualNumberOfPages() == 5000 + 1 + 2 && "Should be 5003 pages in total.");
+    assert(fileHandle.changeToActualPageNum(4096) == 4099 && "Mapping to actual page number failed.");
+    free(data);
+
+    std::cout << "RBF Test Custom Case 01 Finished! The result will not be examined :)" << std::endl << std::endl;
+
     return 0;
 }
 

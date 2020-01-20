@@ -87,6 +87,31 @@ int RBFTest_Custom_2(RecordBasedFileManager &rbfm) {
     std::cout << "Record3: " << std::endl;
     rbfm.printRecord(recordDescriptor, returnedData3);
 
+    // prepare records with null to insert
+    std::cout << std::endl << "Testing records with null fields" << std::endl << std::endl;
+    void *data = malloc(100);
+    void *returnedData = malloc(100);
+    RID rid;
+    int fieldNum = recordDescriptor.size();
+    memset(nullIndicator, 1, nullFieldIndicatorActualSize);
+    for (int i = 0; i <= fieldNum; i++) {
+        nullIndicator[0] |= (unsigned) 1 << (8 - i);
+        prepareRecord(fieldNum, nullIndicator, 5,"aname", 100, 200, 300, data, &rcSize);
+        std::cout << "Record to insert:\t";
+        rbfm.printRecord(recordDescriptor, data);
+
+        rc = rbfm.insertRecord(fileHandle, recordDescriptor, data, rid);
+        assert(rc == success && "Insert record failed.");
+
+        rc = rbfm.readRecord(fileHandle, recordDescriptor, rid, returnedData);
+        assert(rc == success && "Reading record2 failed");
+        std::cout << "Return data:\t\t";
+        rbfm.printRecord(recordDescriptor, returnedData);
+        std::cout << std::endl;
+    }
+    free(data);
+    free(returnedData);
+
     // close file  "custom_test_2"
     rc = rbfm.closeFile(fileHandle);
     assert(rc == success && "Closing file failed");
@@ -121,7 +146,7 @@ int RBFTest_Custom_2(RecordBasedFileManager &rbfm) {
 //    free(data);
 
 
-    std::cout << "RBF Test Custom Case 02 Finished! The result will not be examined :)." << std::endl;
+    std::cout << "RBF Test Custom Case 02 Finished! The result will not be examined :)" << std::endl;
     return 0;
 }
 

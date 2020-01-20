@@ -16,18 +16,18 @@ PagedFileManager::PagedFileManager(const PagedFileManager &) = default;
 PagedFileManager &PagedFileManager::operator=(const PagedFileManager &) = default;
 
 RC PagedFileManager::createFile(const std::string &fileName) {
-    std::cout << fileName.c_str() << std::endl;
+    // std::cout << fileName.c_str() << std::endl; // debug
     FILE* file = fopen(fileName.c_str(), "rb");
     if(file != nullptr){
         fclose(file);
-        std::cout << "filename already exists" << std::endl;
+        // std::cout << "filename already exists" << std::endl; // debug
         return -1;
     }
 
     file = fopen(fileName.c_str(), "wb");
     if(file == nullptr){
         fclose(file);
-        std::cout << "Creation fail" << std::endl;
+        // std::cout << "Creation fail" << std::endl; // debug
         return -1;
     }
 
@@ -38,13 +38,13 @@ RC PagedFileManager::createFile(const std::string &fileName) {
 RC PagedFileManager::destroyFile(const std::string &fileName) {
     FILE* file = fopen(fileName.c_str(), "rb");
     if(file == nullptr){
-        std::cout << "File not exists" << std::endl;
+        // std::cout << "File not exists" << std::endl; // debug
         return -1;
     }
     fclose(file);
     int r = remove(fileName.c_str());
     if(r != 0){
-        std::cout << "Deletion fails" << std::endl;
+        // std::cout << "Deletion fails" << std::endl; // debug
         return -1;
     }
 
@@ -56,7 +56,7 @@ RC PagedFileManager::openFile(const std::string &fileName, FileHandle &fileHandl
     FILE* file = fopen(fileName.c_str(), "rb");
     if(file == nullptr){
         fclose(file);
-        std::cout << "File not exists" << std::endl;
+        // std::cout << "File not exists" << std::endl; // debug
         return -1;
     }
     fclose(file);
@@ -209,7 +209,7 @@ RC FileHandle::appendPage(const void *data, bool dataPage) {
     appendPageCounter++;
     totalPageNum++;
     if (dataPage && dataPageNum % PAGE_SIZE == 0) {
-        // need to insert a new FSP TODO add tests
+        // need to insert a new FSP
         void *fsp = malloc(PAGE_SIZE);
         appendPage(fsp, false);
         free(fsp);

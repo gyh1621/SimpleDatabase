@@ -285,11 +285,6 @@ void Record::convertToRawData(const std::vector<Attribute> &recordDescriptor, vo
 }
 
 void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
-
-    // TODO: add test to print more possible records
-
-    int offsetSectionEnd = sizeof(FieldNumber);
-
     // jump over record header
     int startOffset = recordHeaderSize;
 
@@ -362,7 +357,7 @@ Page::Page(void *data, bool forceInit) {
     }
     // compute free space start offset
     int slot = slotNumber - 1;
-    freeSpaceOffset = 0;  // TODO add test
+    freeSpaceOffset = 0;
     SlotPointerIndicator isPointer;
     RecordOffset recordOffset;
     RecordLength recordLength;
