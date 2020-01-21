@@ -1,33 +1,91 @@
 1. Basic information
-Team #:
-Github Repo Link:
-Student 1 UCI NetID:
-Student 1 Name:
-Student 2 UCI NetID (if applicable):
-Student 2 Name (if applicable):
+Team #: 14
+Github Repo Link: https://github.com/UCI-Chenli-teaching/cs222p-winter20-team-14
+Student 1 UCI NetID: yuhangg4
+Student 1 Name: Yuhang Guo
+Student 2 UCI NetID: lijies2
+Student 2 Name: Lijie Song
 
 
 2. Internal Record Format
 - Show your record format design and describe how your design satisfies O(1) field access.
-
+      Our record format is shown below:
+      ┌────────────────┬──────────────────────┬─────────────────────────┐
+      │  RecordHeader  │     OffsetSection    │        FieldData        │
+      ├────────────────┼──────────────────────┼─────────────────────────┤
+      │  Field Number  │  offset, ..., offset │ Field 1 | ... | Field N │
+      │ unsigned short │    unsigned short    │ ......................  │
+      └────────────────┴──────────────────────┴─────────────────────────┘
+      1. RecordHeader shows the number of fields this record contains.
+      2. OffsetSection shows the offset of each filed which is from start of the record to end of the FieldData.
+         Null fields occupy an offsetSection whose value is 0.
+      3. FieldData shows the actual data of each field. Null fields occupy no FieldData section.
 
 
 - Describe how you store a VarChar field.
-
+      1. In General, the OffsetSection of a VarChar points to the end of the corresponding FieldData section. Length of
+         the field can be calculated by offset of this field and the previous field.
+      2. If the VarChar field is Null, the OffsetSection will be 0 and it will not occupy FieldData section.
+      3. If the Varchar is empty, the OffsetSection points to the end of last no Null field, indicating that its
+         length is 0.
 
 
 3. Page Format
 - Show your page format design
-
+     Our page format is shown below:
+     ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+     │ DATA SECTION: <Record>, <Record>, ....                                                                     │
+     │                                                                                                            │
+     │   ┌──────────────────────────────────┬────────────────┬─────────────────┬────────────────┬─────────────────┤
+     │   │          SLOT DIRECTORY          │ RECORD NUMBER  │   SLOT NUMBER   │   FREE SPACE   │      Inited     │
+     │   ├──────────────────────────────────┼────────────────┼─────────────────┼────────────────┼─────────────────┤
+     │   │     <isPointer, offset, len>     │ record  number │   slot number   │   free bytes   │  init indicator │
+     │   │ <bool, unsigned, unsigned short> │ unsigned short │  unsigned short │ unsigned short │       bool      │
+     └───┴──────────────────────────────────┴────────────────┴─────────────────┴────────────────┴─────────────────┘
+     1. Record data is stored from start of page to end of page. Record is stored one by one. There is no hole
+        between records.
+     2. Record catalogue is stored from end of page to start of page.
+        1) Inited is an Init indicator showing whether the page is initiated.
+        2) Free Space shows the free space of the page.
+        3) Slot Number shows the number of slot of the page.
+        4) Record Number shows the actual number of records in the page.
+        5) Slot Directory stores all slot information. Each slot has three value: isPointer, offset/pageId, len/slotId.
+           isPointer shows whether the slot points to a record in this page or points to another slot in another page.
+           When isPointer is true, it points to another slot. The following two values are pageId and slotId of that
+           slot.
+           When isPointer is false, it points to a record in this page. The following two values are offset and length
+           of that record.
 
 
 4. Page Management
 - Show your algorithm of finding next available-space page when inserting a record.
+     Except a hidden page, we have a free space page for every 4096 actual data pages. Every byte in a free space page
+     records the percentage of free space left for the corresponding actual data page.
+     To find next available-space page, we look up to the free space pages to calculate free space of each page.
+     The format of a file looks like below:
+
+                                                         4096 pages                               4096 pages
+     ┌─────────────────────────────────────┬───────────────────────────────────┬──────┬──────────────────────────────┐
+     | actual page number:      0       1  |   2                        4097   | 4098 |   4099                8194   |
+     ├─────────────────────────────────────┼───────────────────────────────────┼──────┼──────────────────────────────┤
+     | pages:              HiddenPage, FSP | DataPage, ..., ..., ..., DataPage | FSP  | DataPage, ..., ..., DataPage |
+     ├─────────────────────────────────────┼───────────────────────────────────┼──────┼──────────────────────────────┤
+     | data page number:                   |   0                        4095   |      |   4096                8192   |
+     └─────────────────────────────────────┴───────────────────────────────────┴──────┴──────────────────────────────┘
 
 
 
 - Show your hidden page format design if applicable
-
+     Hidden page format:
+     ┌───────┬──────────────────┬───────────────────┬────────────────────┬───────────────┬────────────┐
+     │ bool  │ unsigned         │ unsigned          │ unsigned           │ unsigned      │  unsigned  │
+     ├───────┼──────────────────┼───────────────────┼────────────────────┼───────────────┼────────────┤
+     │IsInit │ readPageCounter  │ writePageCounter  │ appendPageCounter  │ dataPageNumber│ pageNumber │
+     └───────┴──────────────────┴───────────────────┴────────────────────┴───────────────┴────────────┘
+     IsInit shows whether this page is initiated.
+     Then it comes three counters.
+     PageNumber shows the number of all pages in the file, including hidden page.
+     DataPageNumber shows actual number of pages that stores record data.
 
 
 5. Implementation Detail
