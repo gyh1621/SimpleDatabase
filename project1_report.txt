@@ -23,8 +23,8 @@ Student 2 Name: Lijie Song
 
 
 - Describe how you store a VarChar field.
-      1. In General, the OffsetSection of a VarChar points to the end of the corresponding FieldData section. Length of
-         the field can be calculated by offset of this field and the previous field.
+      1. In General, the offset in the OffsetSection of a VarChar points to the end of the corresponding FieldData section.
+         Length of the field can be calculated by offset of this field and the previous field.
       2. If the VarChar field is Null, the OffsetSection will be 0 and it will not occupy FieldData section.
       3. If the Varchar is empty, the OffsetSection points to the end of last no Null field, indicating that its
          length is 0.
@@ -33,23 +33,22 @@ Student 2 Name: Lijie Song
 3. Page Format
 - Show your page format design
      Our page format is shown below:
-     ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-     │ DATA SECTION: <Record>, <Record>, ....                                                                     │
-     │                                                                                                            │
-     │   ┌──────────────────────────────────┬────────────────┬─────────────────┬────────────────┬─────────────────┤
-     │   │          SLOT DIRECTORY          │ RECORD NUMBER  │   SLOT NUMBER   │   FREE SPACE   │      Inited     │
-     │   ├──────────────────────────────────┼────────────────┼─────────────────┼────────────────┼─────────────────┤
-     │   │     <isPointer, offset, len>     │ record  number │   slot number   │   free bytes   │  init indicator │
-     │   │ <bool, unsigned, unsigned short> │ unsigned short │  unsigned short │ unsigned short │       bool      │
-     └───┴──────────────────────────────────┴────────────────┴─────────────────┴────────────────┴─────────────────┘
+     ┌───────────────────────────────────────────────────────────────────────────────────────────┐
+     │ DATA SECTION: <Record>, <Record>, ....                                                    │
+     │                                                                                           │
+     │   ┌──────────────────────────────────┬────────────────┬─────────────────┬─────────────────┤
+     │   │          SLOT DIRECTORY          │ RECORD NUMBER  │   SLOT NUMBER   │      Inited     │
+     │   ├──────────────────────────────────┼────────────────┼─────────────────┼─────────────────┤
+     │   │     <isPointer, offset, len>     │ record  number │   slot number   │  init indicator │
+     │   │ <bool, unsigned, unsigned short> │ unsigned short │  unsigned short │       char      │
+     └───┴──────────────────────────────────┴────────────────┴─────────────────┴─────────────────┘
      1. Record data is stored from start of page to end of page. Record is stored one by one. There is no hole
         between records.
-     2. Record catalogue is stored from end of page to start of page.
+     2. Record catalogue is stored from end of page to start of page (slots expand from end to start).
         1) Inited is an Init indicator showing whether the page is initiated.
-        2) Free Space shows the free space of the page.
-        3) Slot Number shows the number of slot of the page.
-        4) Record Number shows the actual number of records in the page.
-        5) Slot Directory stores all slot information. Each slot has three value: isPointer, offset/pageId, len/slotId.
+        2) Slot Number shows the number of slot of the page.
+        3) Record Number shows the actual number of records in the page.
+        4) Slot Directory stores all slot information. Each slot has three value: isPointer, offset/pageId, len/slotId.
            isPointer shows whether the slot points to a record in this page or points to another slot in another page.
            When isPointer is true, it points to another slot. The following two values are pageId and slotId of that
            slot.
@@ -58,19 +57,27 @@ Student 2 Name: Lijie Song
 
 
 4. Page Management
+
+We have three types of pages:
+- hidden page: record file information like read / write / append counters and page numbers
+- free space page: record free space left on data pages
+- data page: store records
+
 - Show your algorithm of finding next available-space page when inserting a record.
-     Except a hidden page, we have a free space page for every 4096 actual data pages. Every byte in a free space page
-     records the percentage of free space left for the corresponding actual data page.
-     To find next available-space page, we look up to the free space pages to calculate free space of each page.
+     Except a hidden page, we have a free space page for every 2048 actual data pages. Every 2 bytes in a free space page
+     records the free space left for the corresponding actual data page.
+     To find next available page, we look up to the free space pages which dramatically reduces times of reading files.
+     (see optional section)
+
      The format of a file looks like below:
 
-                                                         4096 pages                               4096 pages
+                                                       2048 data pages                         2048 data pages
      ┌─────────────────────────────────────┬───────────────────────────────────┬──────┬──────────────────────────────┐
-     | actual page number:      0       1  |   2                        4097   | 4098 |   4099                8194   |
+     | actual page number:      0       1  |   2                        2049   | 2050 |   2051                4098   |
      ├─────────────────────────────────────┼───────────────────────────────────┼──────┼──────────────────────────────┤
      | pages:              HiddenPage, FSP | DataPage, ..., ..., ..., DataPage | FSP  | DataPage, ..., ..., DataPage |
      ├─────────────────────────────────────┼───────────────────────────────────┼──────┼──────────────────────────────┤
-     | data page number:                   |   0                        4095   |      |   4096                8192   |
+     | data page number:                   |   0                        2047   |      |   2048                4095   |
      └─────────────────────────────────────┴───────────────────────────────────┴──────┴──────────────────────────────┘
 
 
@@ -89,11 +96,49 @@ Student 2 Name: Lijie Song
 
 
 5. Implementation Detail
-- Other implementation details goes here.
 
+- For passing the tests and reserving Project interfaces provided, the page number in RID is the data page number and we
+  do the mapping to the actual page number inside FileHandle class.
+
+- When creating a file, FileHandle will immediately write hidden page and append a free space page, so after closing the
+  file (write hidden file again), the write / append counters will be 2 and 1.
+
+- Free space page is added dynamically. For example, if the 2047-th data page is appended, a new FSP will appended after
+  that data page.
+
+- We abstract Page and Record as two classes;
+    - For Page class, pass page data read from file to the class and the created object will contains the information of
+      the page, such as records number and slot number. It also accepted uninitialized data block and make it into a page
+      object.
+    - For Record class, pass data in either raw format or stored format will get an object contains information of
+      the record. It contains methods to convert data format.
 
 
 6. Other (optional)
-- Freely use this section to tell us about things that are related to the project 1, but not related to the other sections (optional)
 
+Logs of R / W / A counters after using FSP (rbftest_custom_03.cc):
 
+================================== Before ========================================
+After inserting 0 records, r/w/a: 1 1 1 data page/total page: 0 2
+After inserting 1000 records, r/w/a: 55977 888 114 data page/total page: 113 115
+After inserting 2000 records, r/w/a: 224902 1775 227 data page/total page: 226 228
+After inserting 3000 records, r/w/a: 506790 2661 341 data page/total page: 340 342
+After inserting 4000 records, r/w/a: 901643 3549 453 data page/total page: 452 454
+After inserting 5000 records, r/w/a: 1409438 4437 565 data page/total page: 564 566
+After inserting 6000 records, r/w/a: 2030214 5322 680 data page/total page: 679 681
+After inserting 7000 records, r/w/a: 2763942 6210 792 data page/total page: 791 793
+After inserting 8000 records, r/w/a: 3610639 7098 904 data page/total page: 903 905
+
+================================== FSP ========================================
+After inserting 0 records, r/w/a: 1     1       1 data page/total page: 0     2
+After inserting 1000 records, r/w/a: 889        888     114 data page/total page: 113  115
+After inserting 2000 records, r/w/a: 1777       1776    226 data page/total page: 225  227
+After inserting 3000 records, r/w/a: 2663       2662    340 data page/total page: 339  341
+After inserting 4000 records, r/w/a: 3551       3550    452 data page/total page: 451  453
+After inserting 5000 records, r/w/a: 4438       4437    565 data page/total page: 564  566
+After inserting 6000 records, r/w/a: 5324       5323    679 data page/total page: 678  680
+After inserting 7000 records, r/w/a: 6212       6211    791 data page/total page: 790  792
+After inserting 8000 records, r/w/a: 7100       7099    903 data page/total page: 902  904
+
+Note: page numbers after inserting 8000 records differ is because before we store "free space" in each page and already
+      with free space pages in file but not integrate them into the RBFM.

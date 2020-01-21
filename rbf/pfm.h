@@ -87,11 +87,11 @@ private:
     /* write counters and page number to a hidden page
      *
      * Hidden page format:
-     * ┌───────┬──────────────────┬───────────────────┬────────────────────┬───────────────┬────────────┐
-     * │ bool  │ unsigned         │ unsigned          │ unsigned           │ unsigned      │  unsigned  │
-     * ├───────┼──────────────────┼───────────────────┼────────────────────┼───────────────┼────────────┤
-     * │IsInit │ readPageCounter  │ writePageCounter  │ appendPageCounter  │ dataPageNumber│ pageNumber │
-     * └───────┴──────────────────┴───────────────────┴────────────────────┴───────────────┴────────────┘
+     * ┌───────┬──────────────────┬───────────────────┬────────────────────┬─────────────┬────────────────┐
+     * │ bool  │ unsigned         │ unsigned          │ unsigned           │  unsigned   │    unsigned    │
+     * ├───────┼──────────────────┼───────────────────┼────────────────────┼─────────────┼────────────────┤
+     * │IsInit │ readPageCounter  │ writePageCounter  │ appendPageCounter  │ pageNumber  │ dataPageNumber │
+     * └───────┴──────────────────┴───────────────────┴────────────────────┴─────────────┴────────────────┘
      *
      * Return:
      *  0: success
@@ -145,7 +145,7 @@ public:
      * pages:              HiddenPage, FSP | DataPage, ..., ..., ..., DataPage | FSP  | DataPage, ..., ..., DataPage |
      * data page number:                   |   0                        2047   |      |   2048                4095   |
      *
-     * Actual Page Number = (Data Page Number + 1) + floor((Data Page Number + 1) / (float) PAGE_SIZE)
+     * Actual Page Number = (Data Page Number + 1) + ceil((Data Page Number + 1) / (float) PAGE_SIZE)
      *
      */
     static PageNum changeToActualPageNum(PageNum dataPageNum);

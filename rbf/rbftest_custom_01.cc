@@ -39,9 +39,15 @@ int RBFTest_Custom_1(PagedFileManager &pfm) {
     rc = pfm.openFile(fileName1, fileHandle);
     assert(rc == success && "Opening the file should not fail.");
 
-    // Open the same file again use the same handler
+    // Open another file using the same handler
     rc = pfm.openFile(fileName2, fileHandle);
     assert(rc != success && "Opening a file using a handler which is already a handler for some file should failed");
+
+    pfm.closeFile(fileHandle);
+
+    // Open again using same but now unoccupied handle
+    rc = pfm.openFile(fileName1, fileHandle);
+    assert(rc == success && "Opening the file should not fail.");
 
     // Insert 5000 pages and testing FSP inserting
     void *data = malloc(PAGE_SIZE);

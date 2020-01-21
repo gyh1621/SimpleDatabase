@@ -32,13 +32,6 @@ int RBFTest_3(PagedFileManager &pfm) {
     rc = pfm.closeFile(fileHandle);
     assert(rc == success && "Closing the file should not fail.");
 
-    // Open again using same but now unoccupied handle
-    rc = pfm.openFile(fileName, fileHandle);
-    assert(rc == success && "Opening the file should not fail.");
-
-    // Close the file
-    rc = pfm.closeFile(fileHandle);
-    assert(rc == success && "Closing the file should not fail.");
 
     std::cout << "RBF Test Case 03 Finished! The result will be examined." << std::endl << std::endl;
 
