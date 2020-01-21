@@ -74,7 +74,7 @@ private:
      *  0: success
      *  -1: fail
      */
-    RC getFirstPageAvailable(FileHandle &fileHandle, const int &freeSize, PageNum &pageNum, void *data);
+    RC getFirstPageAvailable(FileHandle &fileHandle, const int &freeSize, PageNum &pageNum);
 
 public:
     static RecordBasedFileManager &instance();                          // Access to the _rbf_manager instance
@@ -207,15 +207,15 @@ class Page {
 
     /*
      * Page format:
-     * ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-     * │ DATA SECTION: <Record>, <Record>, ....                                                                     │
-     * │                                                                                                            │
-     * │   ┌──────────────────────────────────┬────────────────┬─────────────────┬────────────────┬─────────────────┤
-     * │   │          SLOT DIRECTORY          │ RECORD NUMBER  │   SLOT NUMBER   │   FREE SPACE   │      Inited     │
-     * │   ├──────────────────────────────────┼────────────────┼─────────────────┼────────────────┼─────────────────┤
-     * │   │     <isPointer, offset, len>     │ record  number │   slot number   │   free bytes   │  init indicator │
-     * │   │ <bool, unsigned, unsigned short> │ unsigned short │  unsigned short │ unsigned short │       bool      │
-     * └───┴──────────────────────────────────┴────────────────┴─────────────────┴────────────────┴─────────────────┘
+     * ┌───────────────────────────────────────────────────────────────────────────────────────────┐
+     * │ DATA SECTION: <Record>, <Record>, ....                                                    │
+     * │                                                                                           │
+     * │   ┌──────────────────────────────────┬────────────────┬─────────────────┬─────────────────┤
+     * │   │          SLOT DIRECTORY          │ RECORD NUMBER  │   SLOT NUMBER   │      Inited     │
+     * │   ├──────────────────────────────────┼────────────────┼─────────────────┼─────────────────┤
+     * │   │     <isPointer, offset, len>     │ record  number │   slot number   │  init indicator │
+     * │   │ <bool, unsigned, unsigned short> │ unsigned short │  unsigned short │       char      │
+     * └───┴──────────────────────────────────┴────────────────┴─────────────────┴─────────────────┘
      *
      * Note: 1. slots expand from right to left.
      *       2. when slot is a pointer: offset is page id, len is slot id
@@ -223,22 +223,21 @@ class Page {
      *       4. record offset points to the first byte of the record
      */
 
-    typedef unsigned short FreeSpace;
     typedef unsigned short SlotNumber;
     typedef unsigned short RecordNumber;
-    typedef bool InitIndicator;
+    typedef char InitIndicator;
     typedef bool SlotPointerIndicator;
     typedef unsigned RecordOffset;
     typedef unsigned short RecordLength;
 
 public:
     static const unsigned short SlotSize = sizeof(RecordOffset) + sizeof(RecordLength) + sizeof(SlotPointerIndicator);
-    static const unsigned short InfoSize = sizeof(RecordNumber) + sizeof(SlotNumber) + sizeof(FreeSpace) + sizeof(InitIndicator);
+    static const unsigned short InfoSize = sizeof(RecordNumber) + sizeof(SlotNumber) + sizeof(InitIndicator);
 
 private:
     bool isInited;
     void *page;
-    FreeSpace freeSpace;
+    PageFreeSpace freeSpace;
     SlotNumber slotNumber;
     RecordNumber recordNumber;
     int freeSpaceOffset;    // start offset of free space
@@ -256,7 +255,7 @@ private:
 
 public:
     // passed page data, will not be delete in destructor
-    Page(void *data, bool forceInit=false);
+    Page(void *data);
     Page(const Page&) = delete;                                     // copy constructor, implement when needed
     Page(Page&&) = delete;                                          // move constructor, implement when needed
     Page& operator=(const Page&) = delete;                          // copy assignment, implement when needed

@@ -9,9 +9,11 @@ typedef unsigned PageNum;
 typedef int RC;
 
 typedef unsigned Counter;
-typedef char PageFreeSpacePercent;
+typedef unsigned short PageFreeSpace;
 
 #define PAGE_SIZE 4096
+
+#define PAGES_IN_FSP (PAGE_SIZE / sizeof(PageFreeSpace))
 
 #include <string>
 
@@ -23,9 +25,10 @@ class FreeSpacePage {
      *
      * https://docs.microsoft.com/en-us/sql/relational-databases/pages-and-extents-architecture-guide?view=sql-server-ver15#tracking-free-space
      *
-     * Every byte in a page indicates free space percentage in the corresponding page. Because only saves percentage,
-     * the free space left is only a estimated value. The percentage should be ceil of the accurate percentage,
-     * so the estimated free space is always larger than actual free space.
+     * Different from implementation above, the FreeSpacePage will store accurate FreeSpace in the page, so when
+     * PAGE_SIZE is 4096 and FreeSpace is unsigned short, each FSP can hold 2048 pages' free space.
+     *
+     * For FSP organization in database files, see comment of FileHandle::changeToActualPageNum
      *
      */
 
@@ -45,8 +48,8 @@ public:
     void loadNewPage(void *data);       // load another fsp
 
     // pageIndex indicates the page's index in this free space page, starts from 0
-    void writeFreeSpace(PageNum pageIndex, PageFreeSpacePercent freePageSpace);
-    PageFreeSpacePercent getFreeSpace(PageNum pageIndex);
+    void writeFreeSpace(PageNum pageIndex, PageFreeSpace freePageSpace);
+    PageFreeSpace getFreeSpace(PageNum pageIndex);
 };
 
 class PagedFileManager {
@@ -137,10 +140,10 @@ public:
     /* Map data page number to actual page number
      *
      * when page size is 4096:
-     *                                     |             4096 pages            |      |           4096 pages         |
-     * actual page number:      0       1  |   2                        4097   | 4098 |   4099                8194   |
+     *                                     |             2048 pages            |      |           2048 pages         |
+     * actual page number:      0       1  |   2                        2049   | 2050 |   2051                4098   |
      * pages:              HiddenPage, FSP | DataPage, ..., ..., ..., DataPage | FSP  | DataPage, ..., ..., DataPage |
-     * data page number:                   |   0                        4095   |      |   4096                8192   |
+     * data page number:                   |   0                        2047   |      |   2048                4095   |
      *
      * Actual Page Number = (Data Page Number + 1) + floor((Data Page Number + 1) / (float) PAGE_SIZE)
      *
@@ -160,10 +163,10 @@ public:
      */
     RC writePage(PageNum pageNum, const void *data, bool actual=false);
     /* here pageNum is always dataPageNum */
-    RC writePage(PageNum pageNum, const void *data, int freeSpace);
+    RC writePage(PageNum pageNum, PageFreeSpace freeSpace, const void *data);
 
     RC appendPage(const void *data, bool dataPage=true);                // Append a specific page
-    RC appendPage(const void *data, int freeSpace);                     // Append a page with freeSpace specified
+    RC appendPage(PageFreeSpace freeSpace, const void *data);           // Append a data page with free space specified
     int getNumberOfPages();                                             // Get the number of data pages in the file
     int getActualNumberOfPages();                                       // Get total number of pages
     RC collectCounterValues(Counter &readPageCount, Counter &writePageCount,
@@ -171,15 +174,15 @@ public:
 
     /* pageNum below is always the data page number, starts from 0 */
 
-    static void getFSPofPage(const PageNum &pageNum, PageNum &fspNum, PageNum &pageIndex);
+    static void getFSPofPage(const PageNum &dataPageNum, PageNum &fspNum, PageNum &pageIndex);
     /* update current FreeSpacePage member
      * Return:
      *  0: updated
      *  -1: not updated
      */
     RC updateCurFSP(const PageNum &fspNum);
-    PageFreeSpacePercent getFreeSpacePercentOfPage(const PageNum pageNum);
-    void updateFreeSpacePercentOfPage(const PageNum pageNum, const PageFreeSpacePercent freePageSpace);
+    PageFreeSpace getFreeSpaceOfPage(PageNum dataPageNum);
+    void updateFreeSpaceOfPage(PageNum dataPageNum, PageFreeSpace freePageSpace);
 };
 
 

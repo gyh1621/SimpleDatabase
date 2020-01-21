@@ -185,7 +185,7 @@ bool FileHandle::isOccupied() {
 
 PageNum FileHandle::changeToActualPageNum(PageNum dataPageNum) {
     dataPageNum += 1;  // hidden page
-    return ceil(float(dataPageNum) / PAGE_SIZE) + dataPageNum;
+    return ceil(float(dataPageNum) / PAGES_IN_FSP) + dataPageNum;
 }
 
 RC FileHandle::readPage(PageNum pageNum, void *data, bool actual) {
@@ -216,10 +216,9 @@ RC FileHandle::writePage(PageNum pageNum, const void *data, bool actual) {
     return 0;
 }
 
-RC FileHandle::writePage(PageNum pageNum, const void *data, int freeSpace) {
+RC FileHandle::writePage(PageNum pageNum, PageFreeSpace freeSpace, const void *data) {
     // update page's free space
-    PageFreeSpacePercent percent = float(freeSpace) / PAGE_SIZE * 100;
-    updateFreeSpacePercentOfPage(pageNum, percent);
+    updateFreeSpaceOfPage(pageNum, freeSpace);
     return writePage(pageNum, data);
 }
 
@@ -229,7 +228,7 @@ RC FileHandle::appendPage(const void *data, bool dataPage) {
     handle->write((const char *) data, PAGE_SIZE);
     appendPageCounter++;
     totalPageNum++;
-    if (dataPage && dataPageNum % PAGE_SIZE == 0) {
+    if (dataPage && dataPageNum % (PAGES_IN_FSP) == 0) {
         // need to insert a new FSP
         void *fsp = malloc(PAGE_SIZE);
         memset(fsp, 0, PAGE_SIZE);
@@ -239,11 +238,10 @@ RC FileHandle::appendPage(const void *data, bool dataPage) {
     return 0;
 }
 
-RC FileHandle::appendPage(const void *data, int freeSpace) {
+RC FileHandle::appendPage(PageFreeSpace freeSpace, const void *data) {
     RC rc = appendPage(data);
     // update page's free space
-    PageFreeSpacePercent percent = float(freeSpace) / PAGE_SIZE * 100;
-    updateFreeSpacePercentOfPage(dataPageNum - 1, percent);
+    updateFreeSpaceOfPage(dataPageNum - 1, freeSpace);
     return rc;
 }
 
@@ -262,9 +260,9 @@ RC FileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePage
     return 0;
 }
 
-void FileHandle::getFSPofPage(const PageNum &pageNum, PageNum &fspNum, PageNum &pageIndex) {
-    fspNum = (pageNum / PAGE_SIZE) * (PAGE_SIZE + 1) + 1;
-    pageIndex = pageNum % PAGE_SIZE;
+void FileHandle::getFSPofPage(const PageNum &dataPageNum, PageNum &fspNum, PageNum &pageIndex) {
+    fspNum = (dataPageNum / PAGES_IN_FSP) * (PAGES_IN_FSP + 1) + 1;
+    pageIndex = dataPageNum % PAGES_IN_FSP;
 }
 
 RC FileHandle::updateCurFSP(const PageNum &fspNum) {
@@ -285,18 +283,18 @@ RC FileHandle::updateCurFSP(const PageNum &fspNum) {
     }
 }
 
-PageFreeSpacePercent FileHandle::getFreeSpacePercentOfPage(const PageNum pageNum) {
+PageFreeSpace FileHandle::getFreeSpaceOfPage(PageNum dataPageNum) {
     // get fsp page number and pageIndex in that fsp and update current fsp member
-    assert(pageNum < dataPageNum);
+    assert(dataPageNum < this->dataPageNum);
     PageNum fspNum, pageIndex;
-    getFSPofPage(pageNum, fspNum, pageIndex);
+    getFSPofPage(dataPageNum, fspNum, pageIndex);
     updateCurFSP(fspNum);
     return curFSP.getFreeSpace(pageIndex);
 }
 
-void FileHandle::updateFreeSpacePercentOfPage(const PageNum pageNum, const PageFreeSpacePercent freePageSpace) {
+void FileHandle::updateFreeSpaceOfPage(PageNum dataPageNum, PageFreeSpace freePageSpace) {
     PageNum fspNum, pageIndex;
-    getFSPofPage(pageNum, fspNum, pageIndex);
+    getFSPofPage(dataPageNum, fspNum, pageIndex);
     updateCurFSP(fspNum);
     curFSP.writeFreeSpace(pageIndex, freePageSpace);
 }
@@ -315,15 +313,14 @@ void FreeSpacePage::loadNewPage(void *data) {
     page = data;
 }
 
-PageFreeSpacePercent FreeSpacePage::getFreeSpace(PageNum pageIndex) {
-    assert(pageIndex < PAGE_SIZE);
-    PageFreeSpacePercent freePageSpace;
-    memcpy(&freePageSpace, (char *) page + pageIndex, 1);
+PageFreeSpace FreeSpacePage::getFreeSpace(PageNum pageIndex) {
+    assert(pageIndex < PAGES_IN_FSP);
+    PageFreeSpace freePageSpace;
+    memcpy(&freePageSpace, (char *) page + pageIndex * sizeof(PageFreeSpace), sizeof(PageFreeSpace));
     return freePageSpace;
 }
 
-void FreeSpacePage::writeFreeSpace(PageNum pageIndex, PageFreeSpacePercent freePageSpace) {
-    assert(pageIndex < PAGE_SIZE);
-    assert(freePageSpace <= 100);
-    memcpy((char *) page + pageIndex, &freePageSpace, 1);
+void FreeSpacePage::writeFreeSpace(PageNum pageIndex, PageFreeSpace freePageSpace) {
+    assert(pageIndex < PAGES_IN_FSP);
+    memcpy((char *) page + pageIndex * sizeof(PageFreeSpace), &freePageSpace, sizeof(PageFreeSpace));
 }

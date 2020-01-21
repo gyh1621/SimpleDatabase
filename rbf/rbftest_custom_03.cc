@@ -40,7 +40,7 @@ int RBFTest_Custom_3(RecordBasedFileManager &rbfm) {
     Counter readPageCounter, writePageCounter, appendPageCounter;
     // Insert 20000 records into file
     for (int i = 0; i < numRecords; i++) {
-        if (i % 1000 == 0 || i < 100) {
+        if (i % 1000 == 0) {
             fileHandle.collectCounterValues(readPageCounter, writePageCounter, appendPageCounter);
             std::cout << "After inserting " << i << " records, r/w/a: " << readPageCounter << "\t"
                       << writePageCounter << "\t" << appendPageCounter << " data page/total page: "

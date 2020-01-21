@@ -15,24 +15,17 @@ RecordBasedFileManager::RecordBasedFileManager(const RecordBasedFileManager &) =
 
 RecordBasedFileManager &RecordBasedFileManager::operator=(const RecordBasedFileManager &) = default;
 
-RC RecordBasedFileManager::getFirstPageAvailable(FileHandle &fileHandle, const int &freeSize, PageNum &pageNum,
-                                                 void *data) {
-    // TODO: maybe add a section in file header saving free space size of all pages
+RC RecordBasedFileManager::getFirstPageAvailable(FileHandle &fileHandle, const int &freeSize, PageNum &pageNum) {
 
     int totalPage = fileHandle.getNumberOfPages(), curPage = 0;
 
     // find a page large enough
-    PageFreeSpacePercent freePercent;
+    PageFreeSpace pageFreeSpace;
     while (curPage < totalPage) {
-        freePercent = fileHandle.getFreeSpacePercentOfPage(curPage);
-        if (PAGE_SIZE * freePercent >= freeSize) {
-            // load page to find out accurate free space
-            fileHandle.readPage(curPage, data);
-            Page page(data);
-            if (page.getFreeSpace() >= freeSize) {
-                pageNum = curPage;
-                return 0;
-            }
+        pageFreeSpace = fileHandle.getFreeSpaceOfPage(curPage);
+        if (pageFreeSpace >= freeSize) {
+            pageNum = curPage;
+            return 0;
         }
         curPage++;
     }
@@ -65,23 +58,24 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vecto
     int slotID;
     void *pageData = malloc(PAGE_SIZE);
     int neededSize = record.getSize() + Page::SlotSize;
-    RC rc = getFirstPageAvailable(fileHandle, neededSize, pageNum, pageData);
+    RC rc = getFirstPageAvailable(fileHandle, neededSize, pageNum);
 
     if (rc != 0) {
         // fail to find a page available, create a new page
         //std::cout << "create new page to insert needed size " << neededSize << std::endl;  //debug
-        Page page(pageData, true);
+        Page page(pageData);
         slotID = page.insertRecord(record);
         // write to file
-        fileHandle.appendPage(page.getPageData(), page.getFreeSpace());
+        fileHandle.appendPage(page.getFreeSpace(), page.getPageData());
         pageNum = fileHandle.getNumberOfPages() - 1;
     } else {
-        // find a page available
+        // find a page available, load page data
+        fileHandle.readPage(pageNum, pageData);
         Page page(pageData);
         //std::cout << "fina a page to insert needed size " << neededSize << " free space " << page.getFreeSpace() << std::endl; // debug
         slotID = page.insertRecord(record);
         // write to file
-        fileHandle.writePage(pageNum, page.getPageData(), page.getFreeSpace());
+        fileHandle.writePage(pageNum, page.getFreeSpace(), page.getPageData());
     }
     //std::cout << "PAGE: " << pageNum << std::endl;  // debug
 
@@ -348,29 +342,27 @@ Record::~Record() {
 //                                     Page Class
 // ========================================================================================
 
-Page::Page(void *data, bool forceInit) {
+Page::Page(void *data) {
     page = data;
 
     // Init page
     int recordNumberOffset = PAGE_SIZE - InfoSize;
     int slotNumberOffset = recordNumberOffset + sizeof(RecordNumber);
-    // fucking
-    int freeSpaceNumberOffset = slotNumberOffset + sizeof(SlotNumber);
     int initIndicatorOffset = PAGE_SIZE - sizeof(InitIndicator);
-    bool isInited = !forceInit && *((bool *) ((char *) page + initIndicatorOffset));
-    if (isInited) {
+    InitIndicator isInited;
+    memcpy(&isInited, (char *) page + initIndicatorOffset, sizeof(InitIndicator));
+    if (isInited == 'Y') {
         // read last info section
         memcpy(&recordNumber, (char *) page + recordNumberOffset, sizeof(RecordNumber));
         memcpy(&slotNumber, (char *) page + slotNumberOffset, sizeof(SlotNumber));
-        memcpy(&freeSpace, (char *) page + freeSpaceNumberOffset, sizeof(FreeSpace));
     } else {
         // init page info
         recordNumber = 0;
         slotNumber = 0;
-        freeSpace = PAGE_SIZE - InfoSize;
-        *((bool *) ((char *) page + initIndicatorOffset)) = true;
+        isInited = 'Y';
+        memcpy((char *) page + initIndicatorOffset, &isInited, sizeof(InitIndicator));
     }
-    // compute free space start offset
+    // compute free space start offset and free space
     int slot = slotNumber - 1;
     freeSpaceOffset = 0;
     SlotPointerIndicator isPointer;
@@ -384,6 +376,7 @@ Page::Page(void *data, bool forceInit) {
         }
         slot--;
     }
+    freeSpace = getNthSlotOffset(slotNumber - 1) - freeSpaceOffset;
 }
 
 Page::~Page() { }
@@ -453,8 +446,6 @@ const void * Page::getPageData() {
     memcpy((char *) page + offset, &recordNumber, sizeof(RecordNumber));
     offset += sizeof(RecordNumber);
     memcpy((char *) page + offset, &slotNumber, sizeof(SlotNumber));
-    offset += sizeof(slotNumber);
-    memcpy((char *) page + offset, &freeSpace, sizeof(FreeSpace));
     return page;
 }
 

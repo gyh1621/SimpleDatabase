@@ -49,8 +49,8 @@ int RBFTest_Custom_1(PagedFileManager &pfm) {
         fileHandle.appendPage(data);
     }
     assert(fileHandle.getNumberOfPages() == 5000 && "Should be 5000 data pages in total");
-    assert(fileHandle.getActualNumberOfPages() == 5000 + 1 + 2 && "Should be 5003 pages in total.");
-    assert(fileHandle.changeToActualPageNum(4096) == 4099 && "Mapping to actual page number failed.");
+    assert(fileHandle.getActualNumberOfPages() == 5000 + 1 + 3 && "Should be 5004 pages in total.");
+    assert(fileHandle.changeToActualPageNum(4095) == 4098 && "Mapping to actual page number failed.");
 
     // test finding a page's free space in fsp
     PageNum fsp, pageIndex;
@@ -61,21 +61,21 @@ int RBFTest_Custom_1(PagedFileManager &pfm) {
     pageNum = 4098;
     fileHandle.getFSPofPage(pageNum, fsp, pageIndex);
     std::cout << fsp << "\t" << pageIndex << std::endl;
-    assert(fsp == 4098 && pageIndex == 2 && "finding fsp failed");
+    assert(fsp == 4099 && pageIndex == 2 && "finding fsp failed");
 
     // test read free space
     for (PageNum pageNum = 0; pageNum < fileHandle.getNumberOfPages(); pageNum++) {
-        PageFreeSpacePercent freePageSpace = fileHandle.getFreeSpacePercentOfPage(pageNum);
-        assert(freePageSpace == 0 && "free page space should be 4096 now");
+        PageFreeSpace freePageSpace = fileHandle.getFreeSpaceOfPage(pageNum);
+        assert(freePageSpace == 0 && "free page space should be 0 now");
     }
 
     // test write
-    fileHandle.updateFreeSpacePercentOfPage(1000, 90);
-    assert(fileHandle.getFreeSpacePercentOfPage(1000) == 90 && "free page space should be 1000 now");
-    fileHandle.updateFreeSpacePercentOfPage(4999, 10);
-    assert(fileHandle.getFreeSpacePercentOfPage(4999) == 10 && "free page space should be 1000 now");
-    fileHandle.updateFreeSpacePercentOfPage(4999, 100);
-    assert(fileHandle.getFreeSpacePercentOfPage(4999) == 100 && "free page space should be 1000 now");
+    fileHandle.updateFreeSpaceOfPage(1000, 3000);
+    assert(fileHandle.getFreeSpaceOfPage(1000) == 3000 && "free page space should be 3000 now");
+    fileHandle.updateFreeSpaceOfPage(4999, 10);
+    assert(fileHandle.getFreeSpaceOfPage(4999) == 10 && "free page space should be 1000 now");
+    fileHandle.updateFreeSpaceOfPage(4999, 100);
+    assert(fileHandle.getFreeSpaceOfPage(4999) == 100 && "free page space should be 1000 now");
 
     free(data);
     fileHandle.releaseHandle();
