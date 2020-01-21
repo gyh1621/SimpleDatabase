@@ -82,6 +82,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vecto
     rid.pageNum = pageNum;
     rid.slotNum = slotID;
 
+    memset(pageData, 0, PAGE_SIZE);
     free(pageData);
 
     return 0;
