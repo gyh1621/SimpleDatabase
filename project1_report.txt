@@ -56,7 +56,7 @@ Student 2 Name: Lijie Song
            of that record.
 
 
-4. Page Management
+4. DataPage Management
 
 We have three types of pages:
 - hidden page: record file information like read / write / append counters and page numbers
@@ -106,8 +106,8 @@ We have three types of pages:
 - Free space page is added dynamically. For example, if the 2047-th data page is appended, a new FSP will appended after
   that data page.
 
-- We abstract Page and Record as two classes;
-    - For Page class, pass page data read from file to the class and the created object will contains the information of
+- We abstract DataPage and Record as two classes;
+    - For DataPage class, pass page data read from file to the class and the created object will contains the information of
       the page, such as records number and slot number. It also accepted uninitialized data block and make it into a page
       object.
     - For Record class, pass data in either raw format or stored format will get an object contains information of

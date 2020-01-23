@@ -59,7 +59,7 @@ int RBFTest_Custom_4(RecordBasedFileManager &rbfm) {
     void *pageData = malloc(PAGE_SIZE);
     for (PageNum i = 0; i < fileHandle.getNumberOfPages(); i++) {
         fileHandle.readPage(i, pageData);
-        Page page(pageData);
+        DataPage page(pageData);
         PageFreeSpace space1 = page.getFreeSpace(), space2 = fileHandle.getFreeSpaceOfPage(i);
         if (i % 200 == 0) std::cout << "Data page " << i << " fs computed: " << space1 << " fs recorded: " << space2 << std::endl;
         assert(page.getFreeSpace() == fileHandle.getFreeSpaceOfPage(i) && "free space should match");
@@ -73,7 +73,7 @@ int RBFTest_Custom_4(RecordBasedFileManager &rbfm) {
     unsigned lastRecordEnd = 0;
     for (PageNum i = 0; i < fileHandle.getNumberOfPages(); i++) {
         fileHandle.readPage(i, pageData);
-        Page page(pageData);
+        DataPage page(pageData);
         lastRecordEnd = 0;
         for (unsigned slot = 0; slot < page.slotNumber; slot++) {
             while (slot < page.slotNumber) {

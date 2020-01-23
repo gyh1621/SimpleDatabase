@@ -1,56 +1,20 @@
 #include <fstream>
 #include <cstring>
 #include <cassert>
+#include "page.h"
+#include "record.h"
 
 #ifndef _pfm_h_
 #define _pfm_h_
 
-typedef unsigned PageNum;
 typedef int RC;
 
-typedef unsigned Counter;
-typedef unsigned short PageFreeSpace;
-
-#define PAGE_SIZE 4096
-
-#define PAGES_IN_FSP (PAGE_SIZE / sizeof(PageFreeSpace))
+typedef unsigned Counter;  // r/w/a counter
 
 #include <string>
 
 class FileHandle;
 
-class FreeSpacePage {
-
-    /* Free Space Page Format:
-     *
-     * https://docs.microsoft.com/en-us/sql/relational-databases/pages-and-extents-architecture-guide?view=sql-server-ver15#tracking-free-space
-     *
-     * Different from implementation above, the FreeSpacePage will store accurate FreeSpace in the page, so when
-     * PAGE_SIZE is 4096 and FreeSpace is unsigned short, each FSP can hold 2048 pages' free space.
-     *
-     * For FSP organization in database files, see comment of FileHandle::changeToActualPageNum
-     *
-     */
-
-private:
-    void *page;
-
-public:
-    FreeSpacePage() = default;
-    // passed page data, will not be delete in destructor
-    FreeSpacePage(void *data);
-    FreeSpacePage(const FreeSpacePage&) = delete;                                     // copy constructor, implement when needed
-    FreeSpacePage(FreeSpacePage&&) = delete;                                          // move constructor, implement when needed
-    FreeSpacePage& operator=(const FreeSpacePage&) = delete;                          // copy assignment, implement when needed
-    FreeSpacePage& operator=(FreeSpacePage&&) = delete;                               // move assignment, implement when needed
-    ~FreeSpacePage() = default;
-
-    void loadNewPage(void *data);       // load another fsp
-
-    // pageIndex indicates the page's index in this free space page, starts from 0
-    void writeFreeSpace(PageNum pageIndex, PageFreeSpace freePageSpace);
-    PageFreeSpace getFreeSpace(PageNum pageIndex);
-};
 
 class PagedFileManager {
 public:
