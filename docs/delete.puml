@@ -1,0 +1,17 @@
+@startuml
+
+participant RBMF as R
+participant DataPage as D
+participant FileHandle as F
+
+R -> D: rid, descriptor
+activate D
+D -> D: moveRecordsForward()
+D -> D: update slot, free space members
+D -> R
+deactivate D
+R -> F: pageNum, *pageData, freeSpace
+F -> F: writePage(pageNum, freeSpace, *pageData)
+F -> R
+
+@enduml

@@ -98,7 +98,7 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<
     while(isPointer){
         fileHandle.readPage(pageid, targetPage);
         DataPage p(targetPage);
-        success = p.readRecord(recordDescriptor, data, isPointer, pageid, slotid);
+        success = p.readRecordIntoRaw(recordDescriptor, data, isPointer, pageid, slotid);
     }
     //std::cout << "PAGE " << pageid << " SLOT " << slotid << std::endl;  // debug
     free(targetPage);

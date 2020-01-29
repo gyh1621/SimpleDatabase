@@ -1,0 +1,20 @@
+@startuml
+
+participant RBFM as R
+participant Record as RC
+participant DataPage as D
+participant FileHandle as F
+
+R -> RC: rawData, descriptor
+RC -> R: formatData
+R -> D: formatData, RID
+activate D
+D -> D: if space not enough, delete origin record, getFirstPageAvailable()
+D -> D: MoveRecordForward()/MoveRecordBackward()
+D -> D: update record data and slot, freespace, record number in datapage
+D -> R
+deactivate D
+R -> F: pageNum, *pageData, freeSpace
+F -> F: writePage(pageNum, freeSpace, *pageData)
+F -> R
+@enduml

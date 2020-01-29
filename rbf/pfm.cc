@@ -408,8 +408,8 @@ int DataPage::insertRecord(Record &record) {
     return slotNumber - 1;  // slot index starts from 0
 }
 
-int DataPage::readRecord(const std::vector<Attribute> &recordDescriptor, void* data,
-                         bool &isPointer, unsigned &recordOffset, unsigned short &recordLen){
+int DataPage::readRecordIntoRaw(const std::vector<Attribute> &recordDescriptor, void* data,
+                                bool &isPointer, unsigned &recordOffset, unsigned short &recordLen){
     RecordOffset offset;
     RecordLength length;
 

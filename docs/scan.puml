@@ -1,0 +1,10 @@
+@startuml
+participant RBFM as R
+participant ScanIterator as S
+
+R -> S: descriptor, conditionAttribute, compOp, compValue, projectedAttributeNames
+activate S
+S -> S: initiate scanIterator
+S -> R
+deactivate S
+@enduml

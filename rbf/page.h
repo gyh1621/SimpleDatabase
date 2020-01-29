@@ -108,8 +108,8 @@ public:
     int insertRecord(Record &record);
 
     // if isPointer = true, recordOffset and recordLen returned as newPageId and newRcId
-    int readRecord(const std::vector<Attribute> &recordDescriptor, void* data, SlotPointerIndicator &isPointer,
-                  RecordOffset &recordOffset, RecordLength & recordLen);
+    int readRecordIntoRaw(const std::vector<Attribute> &recordDescriptor, void* data, SlotPointerIndicator &isPointer,
+                          RecordOffset &recordOffset, RecordLength & recordLen);
 
     const void *getPageData();          // get page data
     const int getFreeSpace();           // get free space
