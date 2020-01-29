@@ -28,18 +28,19 @@ struct Attribute {
 
 typedef unsigned short FieldNumber;   // type depends on PAGE_SIZE
 typedef unsigned short FieldOffset;   // type depends on PAGE_SIZE
+typedef unsigned short RecordVersion;
 
 
 class Record {
 
     /*
      * Record Format:
-     * ┌────────────────┬──────────────────────┬─────────────────────────┐
-     * │  RecordHeader  │     OffsetSection    │        FieldData        │
-     * ├────────────────┼──────────────────────┼─────────────────────────┤
-     * │  Field Number  │  offset, ..., offset │ Field 1 | ... | Field N │
-     * │ unsigned short │    unsigned short    │ ......................  │
-     * └────────────────┴──────────────────────┴─────────────────────────┘
+     * ┌─────────────────────────────────┬──────────────────────┬─────────────────────────┐
+     * │           RecordHeader          │     OffsetSection    │        FieldData        │
+     * ├────────────────┬────────────────┼──────────────────────┼─────────────────────────┤
+     * │ Record Version │  Field Number  │  offset, ..., offset │ Field 1 | ... | Field N │
+     * │ unsigned short │ unsigned short │    unsigned short    │ ......................  │
+     * └────────────────┴────────────────┴──────────────────────┴─────────────────────────┘
      *
      * Note: 1. null field will not occupy a "Field" data space
      *          but will still occupy a "field offset" space and the offset is '0'
@@ -47,7 +48,7 @@ class Record {
      *       3. offset points to end of the data
      */
 
-    static const unsigned short recordHeaderSize = sizeof(unsigned short);
+    static const unsigned short RecordHeaderSize = sizeof(FieldNumber) + sizeof(RecordVersion);
 
     /* Get a record's actual size in bytes from raw record data */
     static int getRecordActualSize(const int &nullIndicatorSize, const std::vector<Attribute> &recordDescriptor, const void *data);
@@ -63,12 +64,13 @@ class Record {
 private:
     int size;
     void *record;
-    int offsetSectionOffset;  // offset to the start of offset section
+    // offset to the start of offset section
+    RecordVersion recordVersion;
     FieldNumber fieldNumber;
     bool passedData; // indicate whether record space is passed in or created in the class
 public:
     Record(void* data);
-    Record(const std::vector<Attribute> &recordDescriptor, const void *data);
+    Record(const std::vector<Attribute> &recordDescriptor, const void *data, RecordVersion version=0);
     Record(const Record&) = delete;                                     // Copy constructor, implement when needed
     Record(Record&&) = delete;                                          // Move constructor, implement when needed
     Record& operator=(const Record&) = delete;                          // Copy assignment, implement when needed

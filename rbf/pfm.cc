@@ -462,7 +462,7 @@ bool Record::isFieldNull(const int &fieldIndex, const void *nullIndicatorData) {
 
 int Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<Attribute> &recordDescriptor, const void *data) {
     // get initial size: header size + field offset section size
-    auto size = Record::recordHeaderSize + recordDescriptor.size() * sizeof(FieldOffset);
+    auto size = Record::RecordHeaderSize + recordDescriptor.size() * sizeof(FieldOffset);
     auto offset = nullIndicatorSize;
 
     // add fields' data size
@@ -486,21 +486,25 @@ int Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<
     return size;
 }
 
-Record::Record(const std::vector<Attribute> &recordDescriptor, const void *data) {
+Record::Record(const std::vector<Attribute> &recordDescriptor, const void *data, const RecordVersion version) {
     passedData = false;
     int fieldNum = recordDescriptor.size();
     int nullIndicatorSize = getNullIndicatorSize(fieldNum);
     this->size = getRecordActualSize(nullIndicatorSize, recordDescriptor, data);
     this->record = malloc(this->size);
     if (this->record == nullptr) throw std::bad_alloc();
-    this->offsetSectionOffset = recordHeaderSize;
+    this->recordVersion = version;
     this->fieldNumber = fieldNum;
     // offset1 is the current writing position of *record
     // offset2 is the current reading position of *data
     auto offset1 = 0, offset2 = 0;
 
+    // write version
+    memcpy(record, &this->recordVersion, sizeof(RecordVersion));
+    offset1 += sizeof(RecordVersion);
+
     // write field number
-    *((FieldNumber *) record) = fieldNum;
+    memcpy((char *) record + offset1, &this->fieldNumber, sizeof(FieldNumber));
     offset1 += sizeof(FieldNumber);
 
     // record: jump over offset section
@@ -515,7 +519,7 @@ Record::Record(const std::vector<Attribute> &recordDescriptor, const void *data)
     for (auto it = recordDescriptor.begin(); it != recordDescriptor.end(); it++) {
         int index = std::distance(recordDescriptor.begin(), it);  // field index
         nullBit = isFieldNull(index, data);  // get null bit
-        auto currentFieldOffsetPos = offsetSectionOffset + index * sizeof(FieldOffset);
+        auto currentFieldOffsetPos = RecordHeaderSize + index * sizeof(FieldOffset);
         if (nullBit) {
             // null field
             *((FieldOffset *)((char *) record + currentFieldOffsetPos)) = 0;
@@ -552,9 +556,8 @@ Record::Record(void* data){
     // TODO: wrong
     this->size = sizeof(data);
     this->record = data;
-    FieldNumber headerNum = *(FieldNumber *) data;
-    this->fieldNumber = headerNum;
-    this->offsetSectionOffset = sizeof(FieldNumber) * (headerNum + 1);
+    memcpy(&this->recordVersion, data, sizeof(RecordVersion));
+    memcpy(&this->fieldNumber, (char *) data + sizeof(RecordVersion), sizeof(fieldNumber));
 }
 
 int Record::getSize() { return size; }
@@ -570,7 +573,7 @@ void Record::convertToRawData(const std::vector<Attribute> &recordDescriptor, vo
     for (int i = 0; i < nullPointerSize; i++) nullPointer[i] = 0;
 
     // jump over record header
-    auto startOffset = recordHeaderSize;
+    auto startOffset = RecordHeaderSize;
 
     // field offsets
     auto lastFieldEndOffset = startOffset + fieldNumber * sizeof(FieldOffset);
@@ -599,7 +602,7 @@ void Record::convertToRawData(const std::vector<Attribute> &recordDescriptor, vo
 
 void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
     // jump over record header
-    auto startOffset = recordHeaderSize;
+    auto startOffset = RecordHeaderSize;
 
     // field offsets
     auto lastFieldEndOffset = startOffset + fieldNumber * sizeof(FieldOffset);

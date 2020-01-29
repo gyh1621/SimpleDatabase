@@ -147,11 +147,11 @@ package RBF {
     }
 
     class Record {
-        {static} -unsigned short recordHeaderSize
+        {static} -unsigned short RecordHeaderSize
         -int size
         -void *record
-        -int offsetSectionOffset
         -FieldNumber fieldNumber
+        -RecordVersion recordVersion
         -bool passedData
         -- private methods --
         {static} -int getRecordActualSize(nullIndicatorSize, rDescriptor, *data);
@@ -173,8 +173,8 @@ package RBF {
     note left of Record
     Record Format
     ----
-    RecordHeader       OffsetSection             FieldData
-    Field Number    offset, ..., offset     Field 1,...,Field N
+    RecordHeader                           OffsetSection             FieldData
+    RecordVersion, FieldNumber    offset, ..., offset     Field 1,...,Field N
     end note
 }
 
