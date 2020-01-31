@@ -18,7 +18,7 @@ R -> R: getFirstPageAvailable()
 R -> D: Record, slotID
 activate D
 D -> D: moveRecords()\nmemcpy()
-D -> D: update slots' offsets\nfreespace, record number
+D -> D: update slots' offsets, new record length\nfreespace, record number
 D -> R
 deactivate D
 

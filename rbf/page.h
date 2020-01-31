@@ -75,6 +75,7 @@ class DataPage {
 public:
     static const unsigned SlotSize = sizeof(RecordOffset) + sizeof(RecordLength) + sizeof(SlotPointerIndicator);
     static const unsigned InfoSize = sizeof(RecordNumber) + sizeof(SlotNumber) + sizeof(InitIndicator);
+    static const RecordOffset DeletedRecordOffset = PAGE_SIZE;
 
 private:
     void *page;
@@ -86,15 +87,15 @@ private:
     /* Get nth slot offset from page start
      * n starts from 0 and from right to left
      * */
-    static int getNthSlotOffset(int n);
+    static int getNthSlotOffset(SlotNumber n);
 
     /* Parse a slot
      * slot starts from 0 and from right to left
      * */
     void parseSlot(int slot, SlotPointerIndicator &isPointer, RecordOffset &recordOffset, RecordLength &recordLen);
 
-    // set target slot to indicate that record is deleted;
-    void deleteSlot(int slot);
+    /* Get first available slot */
+    SlotNumber getFirstAvailableSlot();
 
     //after move, update slot info that has been moved. dir = true : forward, false: backward;
     void updateSlotInfo(RecordOffset offset, RecordLength length, bool dir);
@@ -111,21 +112,33 @@ public:
     DataPage& operator=(DataPage&&) = delete;                       // move assignment, implement when needed
     ~DataPage() = default;
 
+    // set target slot to indicate that record is deleted;
+    // offset will be set to PAGE_SIZE
+    void deleteSlot(int slot);
+
     /* Insert a record into the page
      * Return: slot id
      */
-    int insertRecord(Record &record);
+    SlotNumber insertRecord(Record &record);
 
-    // if isPointer = true, recordOffset and recordLen returned as newPageId and newRcId
-    int readRecordIntoRaw(const std::vector<Attribute> &recordDescriptor, void* data, SlotPointerIndicator &isPointer,
-                          RecordOffset &recordOffset, RecordLength & recordLen);
+    /* get record length, always assume record exists in this page */
+    RecordLength getRecordSize(SlotNumber slot);
 
-    // delete target record;
-    int deleteRecord(SlotPointerIndicator &isPointer, RecordOffset &pageid, RecordLength &slotid);
+    // always assume record exists in this page
+    void readRecordIntoRaw(SlotNumber slot, const std::vector<Attribute> &recordDescriptor, void* data);
+
+    // delete target record, always assume record exists in this page
+    void deleteRecord(SlotNumber &slotid);
+
+    // a record will be moved another page
+    // delete record and change the slot into a pointer
+    void moveRecord(SlotNumber slot, const RID &newRID);
+
     // update target record;
-    int updateRecord(Record &updateRecord, RecordLength &slotid);
+    void updateRecord(Record &updateRecord, RecordLength &slotid);
 
-    void checkRecordExist(SlotPointerIndicator &isPointer, RecordOffset &pageid, RecordLength &slotid, RecordOffset &offset, RecordLength &length);
+    /* Return: 0 - exists, -1 - pointer, 1 - deleted record */
+    int checkRecordExist(SlotNumber &slotid, RID &newRID);
     const void *getPageData();          // get page data
     const int getFreeSpace();           // get free space
 };

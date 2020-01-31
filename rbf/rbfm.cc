@@ -69,7 +69,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vecto
     auto neededSize = record.getSize() + DataPage::SlotSize;
     RC rc = getFirstPageAvailable(fileHandle, neededSize, pageNum);
 
-    if (rc != 0) {
+    if (rc == -1) {
         // fail to find a page available, create a new page
         //std::cout << "create new page to insert needed size " << neededSize << std::endl;  //debug
         DataPage page(pageData);
@@ -99,35 +99,40 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vecto
 
 RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                       const RID &rid, void *data) {
-    auto pageid = rid.pageNum;
-    auto slotid = rid.slotNum;
     void* targetPage = malloc(PAGE_SIZE);
-    bool isPointer = true;
-    RC success = 1;
+    if (targetPage == nullptr) throw std::bad_alloc();
+    RC rc;
 
-    while(isPointer){
-        fileHandle.readPage(pageid, targetPage);
-        DataPage p(targetPage);
-        success = p.readRecordIntoRaw(recordDescriptor, data, isPointer, pageid, slotid);
-    }
+    RID actualRID;
+    actualRID.slotNum = rid.slotNum;
+    actualRID.pageNum = rid.pageNum;
+    rc = findRecordActualRID(fileHandle, actualRID);
+    if (rc == 1) return rc;  // deleted record
+
+    fileHandle.readPage(actualRID.pageNum, targetPage);
+    DataPage p(targetPage);
+    p.readRecordIntoRaw(actualRID.slotNum, recordDescriptor, data);
+
     //std::cout << "PAGE " << pageid << " SLOT " << slotid << std::endl;  // debug
     free(targetPage);
-    return success;
+    return rc;
 }
 
 RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                         const RID &rid) {
-    auto pageid = rid.pageNum;
-    auto slotid = rid.slotNum;
     void* targetPage = malloc(PAGE_SIZE);
-    bool isPointer = true;
-    RC rc = 1;
-    while(isPointer){
-        fileHandle.readPage(pageid, targetPage);
-        DataPage p(targetPage);
-        rc = p.deleteRecord(isPointer, pageid, slotid);
-        fileHandle.writePage(pageid, p.getFreeSpace(), p.getPageData());
-    }
+    RC rc;
+
+    RID actualRID;
+    actualRID.pageNum = rid.pageNum;
+    actualRID.slotNum = rid.slotNum;
+    rc = findRecordActualRID(fileHandle, actualRID, true);
+
+    fileHandle.readPage(actualRID.pageNum, targetPage);
+    DataPage p(targetPage);
+    p.deleteRecord(actualRID.slotNum);
+    fileHandle.writePage(actualRID.pageNum, p.getFreeSpace(), p.getPageData());
+
     free(targetPage);
     return rc;
 }
@@ -141,37 +146,37 @@ RC RecordBasedFileManager::printRecord(const std::vector<Attribute> &recordDescr
 RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                         const void *data, const RID &rid) {
     Record updatedRecord(recordDescriptor, data);
-    RecordOffset pageid = rid.pageNum;
-    RecordLength slotid = rid.slotNum;
-    RecordOffset offset = 0;
-    RecordLength length = 0;
     void* targetPage = malloc(PAGE_SIZE);
-    bool isPointer = true;
-    RC rc = 1;
-    while(isPointer){
-        fileHandle.readPage(pageid, targetPage);
-        DataPage p(targetPage);
-        p.checkRecordExist(isPointer, pageid, slotid, offset, length);
-    }
+    if (targetPage == nullptr) throw std::bad_alloc();
+    memset(targetPage, 0, PAGE_SIZE);
+
+    RC rc;
+    RID actualRID;
+    actualRID.pageNum = rid.pageNum;
+    actualRID.slotNum = rid.slotNum;
+    rc = findRecordActualRID(fileHandle, actualRID);
+    if (rc == 1) return rc;  // deleted record
+
+    fileHandle.readPage(actualRID.pageNum, targetPage);
     DataPage page(targetPage);
-    int freespace = page.getFreeSpace();
-    int updatedSize = updatedRecord.getSize();
-    int spaceNeeded = abs(updatedSize - length);
-    if(spaceNeeded <= freespace){
-        page.updateRecord(updatedRecord, slotid);
-    }else{
-        page.deleteRecord(isPointer, pageid, slotid);
+
+    RecordLength oldRecordSize = page.getRecordSize(actualRID.slotNum);
+    auto freespace = page.getFreeSpace();
+    auto updatedSize = updatedRecord.getSize();
+
+    if (oldRecordSize >= updatedSize || updatedSize - oldRecordSize <= freespace) {
+        // can fit into current page
+        page.updateRecord(updatedRecord, actualRID.slotNum);
+    } else {
+        // insert to new page
         RID newRID;
         insertRecord(fileHandle, recordDescriptor, data, newRID);
-        *((SlotPointerIndicator *)((char *)targetPage + offset)) = true;
-        offset += sizeof(SlotPointerIndicator);
-        memcpy((char *)targetPage + offset, &newRID, sizeof(RID::pageNum));
-//        *((RecordOffset *)((char *)targetPage + offset)) = newRID.pageNum;
-        offset += sizeof(RecordOffset);
-        memcpy((char*)targetPage + offset, &newRID, sizeof(RID::slotNum));
-//        *((RecordLength *)((char *)targetPage + offset)) = newRID.slotNum;
+        // remove record from this page and turn the slot into a pointer
+        page.moveRecord(actualRID.slotNum, newRID);
     }
-    fileHandle.writePage(pageid, page.getFreeSpace(), page.getPageData());
+
+    fileHandle.writePage(actualRID.pageNum, page.getFreeSpace(), page.getPageData());
+
     free(targetPage);
     return 0;
 }
@@ -187,3 +192,23 @@ RC RecordBasedFileManager::scan(FileHandle &fileHandle, const std::vector<Attrib
     return -1;
 }
 
+int RecordBasedFileManager::findRecordActualRID(FileHandle &fileHandle, RID &rid, bool deletePointer) {
+    int result = -1;
+    void *pageData = malloc(PAGE_SIZE);
+    if (pageData == nullptr) throw std::bad_alloc();
+    while (result != 0) {
+        SlotNumber slot = rid.slotNum;
+        fileHandle.readPage(rid.pageNum, pageData);
+        DataPage page(pageData);
+        result = page.checkRecordExist(slot, rid);
+        if (result == 1) {
+            // deleted record
+            break;
+        } else if (result == -1) {
+            // pointer
+            if (deletePointer) page.deleteSlot(slot);
+        }
+    }
+    free(pageData);
+    return result;
+}

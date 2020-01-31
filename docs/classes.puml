@@ -90,6 +90,7 @@ package RBF {
     class DataPage {
         {static} +unsigned SlotSize
         {static} +unsigned InfoSize
+        {static} +RecordOffset DeletedRecordOffset
         --
         -void *page
         -PageFreeSpace freeSpace
@@ -99,20 +100,23 @@ package RBF {
         --
         // n starts from 0
         -{static} int getNthSlotOffset(n)
+        -SlotNumber getFirstAvailableSlot()
         -void parseSlot(slot, isPointer, recordOffset, recordLen)
-        -void deleteSlot(slot)
-        -void updateSlotInfo(offset, length, direction)
+        -void updateSlotInfo(offset, length, bool dir);
         --
         +DataPage(*data)
         +~DataPage() = default
-        +int insertRecord(record)
-        +int readRecordIntoRaw(rDescriptor, *data, isPointer, rOffset, rLen)
-        +int deleteRecord(&isPointer, &recordOffset, &recordLength)
+        +void deleteSlot(slot)
+        +RecordLength getRecordSize(slot)
+        +SlotNumber insertRecord(record)
+        +void readRecordIntoRaw(slot, &recordDescriptor, *data)
+        +void deleteRecord(slotID)
+        +void updateRecord(&updateRecord, &slotid)
+        +void moveRecord(slot, &newRID)
         +void *getPageData()
         +int getFreeSpace()
-        -- UNIMPLEMENTED --
-        +RC moveRecordsForward(RecordOffset startOffset, targetOffset);
-        +RC moveRecordsBackward(RecordOffset startOffset, targetOffset);
+        +int checkRecordExist(&slotid, &newRID)
+        +void moveRecords(RecordOffset startOffset, targetOffset);
     }
 
     class FreeSpacePage {
@@ -211,6 +215,7 @@ package RBFM {
     class RecordBasedFileManager {
         --
         -RC getFirstPageAvailable(fileHandle, freeSize, pageNum)
+        {static} -int findRecordActualRID(&fileHandle, &rid, deletePointer=false)
         --
         {static} +RecordBasedFileManager &instance()
         +RC createFile(fileName)

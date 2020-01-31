@@ -58,6 +58,10 @@ private:
      */
     RC getFirstPageAvailable(FileHandle &fileHandle, const int &freeSize, PageNum &pageNum);
 
+    /* find record's actual position, if deletePointer is true, delete pointers point to this record */
+    /* Return: same to DataPage::checkRecordExist */
+    static int findRecordActualRID(FileHandle &fileHandle, RID &rid, bool deletePointer=false);
+
 public:
     static RecordBasedFileManager &instance();                          // Access to the _rbf_manager instance
 
@@ -88,6 +92,7 @@ public:
     RC insertRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor, const void *data, RID &rid);
 
     // Read a record identified by the given rid.
+    // Return: same to DataPage::readRecordIntoRaw
     RC readRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor, const RID &rid, void *data);
 
     // Print the record that is passed to this utility method.
