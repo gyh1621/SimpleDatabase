@@ -81,7 +81,7 @@ private:
     PageFreeSpace freeSpace;
     SlotNumber slotNumber;
     RecordNumber recordNumber;
-    int freeSpaceOffset;    // start offset of free space
+    RecordOffset freeSpaceOffset;    // start offset of free space
 
     /* Get nth slot offset from page start
      * n starts from 0 and from right to left
@@ -92,10 +92,16 @@ private:
      * slot starts from 0 and from right to left
      * */
     void parseSlot(int slot, SlotPointerIndicator &isPointer, RecordOffset &recordOffset, RecordLength &recordLen);
+
     // set target slot to indicate that record is deleted;
     void deleteSlot(int slot);
+
     //after move, update slot info that has been moved. dir = true : forward, false: backward;
     void updateSlotInfo(RecordOffset offset, RecordLength length, bool dir);
+
+    // move records included from startOffset to final record's end, not doing any check here
+    void moveRecords(RecordOffset startOffset, RecordOffset targetOffset);
+
 public:
     // passed page data, will not be delete in destructor
     explicit DataPage(void *data);

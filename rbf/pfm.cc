@@ -393,28 +393,33 @@ void DataPage::deleteSlot(int slot) {
 
 void DataPage::updateSlotInfo(RecordOffset offset, RecordLength length, bool dir) {
     int slotOffset = 0;
-    for(int i = 0; i < slotNumber; i++){
+    for (int i = 0; i < slotNumber; i++) {
         slotOffset = getNthSlotOffset(i);
         bool isPointer;
 //        = *((SlotPointerIndicator *)((char *)page + slotOffset));
-        memcpy(&isPointer, (char *)page + slotOffset, sizeof(bool));
-        if(!isPointer){
+        memcpy(&isPointer, (char *) page + slotOffset, sizeof(bool));
+        if (!isPointer) {
             continue;
         }
         slotOffset += sizeof(SlotPointerIndicator);
         RecordOffset curOffset;
 //        = *((RecordOffset *)((char *)page + slotOffset));
-        memcpy(&curOffset, (char *)page + slotOffset, sizeof(RecordOffset));
-        if(curOffset > offset){
-            if(dir){
+        memcpy(&curOffset, (char *) page + slotOffset, sizeof(RecordOffset));
+        if (curOffset > offset) {
+            if (dir) {
                 curOffset -= length;
-            }else{
+            } else {
                 curOffset += length;
             }
-            *((RecordOffset *)((char *)page + slotOffset)) = curOffset;
+            *((RecordOffset *) ((char *) page + slotOffset)) = curOffset;
         }
     }
+}
 
+void DataPage::moveRecords(RecordOffset startOffset, RecordOffset targetOffset) {
+    auto moveSize = this->freeSpaceOffset - startOffset;
+    memmove((char *) this->page + targetOffset, (char *) this->page + startOffset, moveSize);
+    this->freeSpaceOffset = targetOffset + moveSize;
 }
 
 int DataPage::insertRecord(Record &record) {
@@ -641,11 +646,17 @@ Record::Record(const std::vector<Attribute> &recordDescriptor, const void *data,
 
 Record::Record(void* data){
     passedData = true;
-    // TODO: wrong
-    this->size = sizeof(data);
     this->record = data;
     memcpy(&this->recordVersion, data, sizeof(RecordVersion));
     memcpy(&this->fieldNumber, (char *) data + sizeof(RecordVersion), sizeof(fieldNumber));
+    if (this->fieldNumber == 0) {
+        this->size = RecordHeaderSize;
+    } else {
+        FieldOffset lastFieldOffsetPos = RecordHeaderSize + (this->fieldNumber - 1) * sizeof(FieldOffset);
+        FieldOffset lastFieldOffset;
+        memcpy(&lastFieldOffset, (char *) this->record + lastFieldOffsetPos, sizeof(FieldOffset));
+        this->size = lastFieldOffset;
+    }
 }
 
 int Record::getSize() { return size; }

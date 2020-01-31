@@ -44,8 +44,7 @@ class Record {
      *
      * Note: 1. null field will not occupy a "Field" data space
      *          but will still occupy a "field offset" space and the offset is '0'
-     *       2. varchar's length will be stored as 2 bytes data, so current maximum length of varchar is 65536
-     *       3. offset points to end of the data
+     *       2. offset points to end of the data(byte offset points to has no data)
      */
 
     static const unsigned short RecordHeaderSize = sizeof(FieldNumber) + sizeof(RecordVersion);
