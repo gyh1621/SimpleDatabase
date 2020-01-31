@@ -92,7 +92,10 @@ private:
      * slot starts from 0 and from right to left
      * */
     void parseSlot(int slot, SlotPointerIndicator &isPointer, RecordOffset &recordOffset, RecordLength &recordLen);
-
+    // set target slot to indicate that record is deleted;
+    void deleteSlot(int slot);
+    //after move, update slot info that has been moved. dir = true : forward, false: backward;
+    void updateSlotInfo(RecordOffset offset, RecordLength length, bool dir);
 public:
     // passed page data, will not be delete in destructor
     explicit DataPage(void *data);
@@ -111,6 +114,12 @@ public:
     int readRecordIntoRaw(const std::vector<Attribute> &recordDescriptor, void* data, SlotPointerIndicator &isPointer,
                           RecordOffset &recordOffset, RecordLength & recordLen);
 
+    // delete target record;
+    int deleteRecord(SlotPointerIndicator &isPointer, RecordOffset &pageid, RecordLength &slotid);
+    // update target record;
+    int updateRecord(Record &updateRecord, RecordLength &slotid);
+
+    void checkRecordExist(SlotPointerIndicator &isPointer, RecordOffset &pageid, RecordLength &slotid, RecordOffset &offset, RecordLength &length);
     const void *getPageData();          // get page data
     const int getFreeSpace();           // get free space
 };

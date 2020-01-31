@@ -100,11 +100,14 @@ package RBF {
         // n starts from 0
         -{static} int getNthSlotOffset(n)
         -void parseSlot(slot, isPointer, recordOffset, recordLen)
+        -void deleteSlot(slot)
+        -void updateSlotInfo(offset, length, direction)
         --
         +DataPage(*data)
         +~DataPage() = default
         +int insertRecord(record)
         +int readRecordIntoRaw(rDescriptor, *data, isPointer, rOffset, rLen)
+        +int deleteRecord(&isPointer, &recordOffset, &recordLength)
         +void *getPageData()
         +int getFreeSpace()
         -- UNIMPLEMENTED --

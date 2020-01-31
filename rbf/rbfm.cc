@@ -32,6 +32,16 @@ RC RecordBasedFileManager::getFirstPageAvailable(FileHandle &fileHandle, const i
     return -1;
 }
 
+//void RecordBasedFileManager::findDataPage(FileHandle &fileHandle, RecordLength &pageid, RecordOffset &slotid,
+//                                          void *targetPage) {
+//    bool isPointer = true;
+//    while(isPointer){
+//        fileHandle.readPage(pageid,targetPage);
+//        DataPage p(targetPage);
+//        p.checkRecordExist(isPointer, pageid, slotid);
+//    }
+//}
+
 RC RecordBasedFileManager::createFile(const std::string &fileName) {
     return PagedFileManager::instance().createFile(fileName);
 }
@@ -107,7 +117,19 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<
 
 RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                         const RID &rid) {
-    return -1;
+    auto pageid = rid.pageNum;
+    auto slotid = rid.slotNum;
+    void* targetPage = malloc(PAGE_SIZE);
+    bool isPointer = true;
+    RC rc = 1;
+    while(isPointer){
+        fileHandle.readPage(pageid, targetPage);
+        DataPage p(targetPage);
+        rc = p.deleteRecord(isPointer, pageid, slotid);
+        fileHandle.writePage(pageid, p.getFreeSpace(), p.getPageData());
+    }
+    free(targetPage);
+    return rc;
 }
 
 RC RecordBasedFileManager::printRecord(const std::vector<Attribute> &recordDescriptor, const void *data) {
@@ -118,7 +140,40 @@ RC RecordBasedFileManager::printRecord(const std::vector<Attribute> &recordDescr
 
 RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                         const void *data, const RID &rid) {
-    return -1;
+    Record updatedRecord(recordDescriptor, data);
+    RecordOffset pageid = rid.pageNum;
+    RecordLength slotid = rid.slotNum;
+    RecordOffset offset = 0;
+    RecordLength length = 0;
+    void* targetPage = malloc(PAGE_SIZE);
+    bool isPointer = true;
+    RC rc = 1;
+    while(isPointer){
+        fileHandle.readPage(pageid, targetPage);
+        DataPage p(targetPage);
+        p.checkRecordExist(isPointer, pageid, slotid, offset, length);
+    }
+    DataPage page(targetPage);
+    int freespace = page.getFreeSpace();
+    int updatedSize = updatedRecord.getSize();
+    int spaceNeeded = abs(updatedSize - length);
+    if(spaceNeeded <= freespace){
+        page.updateRecord(updatedRecord, slotid);
+    }else{
+        page.deleteRecord(isPointer, pageid, slotid);
+        RID newRID;
+        insertRecord(fileHandle, recordDescriptor, data, newRID);
+        *((SlotPointerIndicator *)((char *)targetPage + offset)) = true;
+        offset += sizeof(SlotPointerIndicator);
+        memcpy((char *)targetPage + offset, &newRID, sizeof(RID::pageNum));
+//        *((RecordOffset *)((char *)targetPage + offset)) = newRID.pageNum;
+        offset += sizeof(RecordOffset);
+        memcpy((char*)targetPage + offset, &newRID, sizeof(RID::slotNum));
+//        *((RecordLength *)((char *)targetPage + offset)) = newRID.slotNum;
+    }
+    fileHandle.writePage(pageid, page.getFreeSpace(), page.getPageData());
+    free(targetPage);
+    return 0;
 }
 
 RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
