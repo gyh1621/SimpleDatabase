@@ -415,6 +415,9 @@ void DataPage::updateSlotInfo(RecordOffset offset, RecordLength length, bool dir
         slotOffset += sizeof(SlotPointerIndicator);
         RecordOffset curOffset;
         memcpy(&curOffset, (char *)page + slotOffset, sizeof(RecordOffset));
+        if(curOffset == DeletedRecordOffset){
+            continue;
+        }
         if(curOffset > offset){
             if(dir){
                 curOffset -= length;
