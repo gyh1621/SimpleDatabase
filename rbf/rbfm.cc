@@ -107,7 +107,10 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<
     actualRID.slotNum = rid.slotNum;
     actualRID.pageNum = rid.pageNum;
     rc = findRecordActualRID(fileHandle, actualRID);
-    if (rc == 1) return rc;  // deleted record
+    if (rc == 1) {
+        free(targetPage);
+        return rc;  // deleted record
+    }
 
     fileHandle.readPage(actualRID.pageNum, targetPage);
     DataPage p(targetPage);

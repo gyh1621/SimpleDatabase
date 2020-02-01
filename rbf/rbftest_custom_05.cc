@@ -53,6 +53,7 @@ int RBFTest_Custom_5(RecordBasedFileManager &rbfm) {
         free(recordData);
     }
 
+    free(pageData);
     free(record);
     free(nullsIndicator);
     rbfm.closeFile(fileHandle);
