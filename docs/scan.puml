@@ -1,10 +1,30 @@
 @startuml
-participant RBFM as R
-participant ScanIterator as S
+participant RM as R1
+participant RM_ScanIterator as S1
+participant RBFM as R2
+participant RBFM_ScanIterator as S2
 
-R -> S: descriptor, conditionAttribute, compOp, compValue, projectedAttributeNames
-activate S
-S -> S: initiate scanIterator
-S -> R
-deactivate S
+R1 -> S1: tableName, conditionAttr\ncompOp, value\nattrs
+
+activate S1
+S1 -> S1: getTableFile(tableName)
+S1 -> S1: RBFM::openFile()
+S1 -> S1: getAttributes(tableName)
+
+S1 -> R2: scan( handle, des, \nconditionAttr, compOp, value, attrs )
+R2 -> S2: des, conditionAttr \ncompOp, value, attrs
+activate S2
+S2 -> S2: createDescriptor
+S2 -> R2: rbfmi
+R2 -> S1: rbfmi
+
+S1 -> R1: rmsi
+deactivate S1
+
+R1 -> S1: getNextTuple()
+S1 -> S2: getNextRecord()
+S2 -> S2: readRecord()
+S2 -> S1: raw data
+S1 -> R1
+
 @enduml

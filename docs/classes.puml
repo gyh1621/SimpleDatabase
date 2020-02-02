@@ -270,6 +270,8 @@ package RM {
         #~RelationManager()
         #RelationManager(const RelationManager &)
         #RelationManager &operator=(const RelationManager &)
+        --UNIMPLEMENTED--
+        -void getTableFile(&tableID, &fileHandle)
     }
 }
 
