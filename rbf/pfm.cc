@@ -82,7 +82,7 @@ FileHandle::FileHandle() {
     dataPageNum = 0;
     handle = nullptr;
     fspData = nullptr;
-    curFSPNum = PAGE_SIZE;
+    curFSPNum = 0;
 }
 
 FileHandle::~FileHandle() {
@@ -170,13 +170,19 @@ RC FileHandle::releaseHandle() {
         // no file open
         return 1;
     } else {
+        if (fspData != nullptr) {
+            // save free space to disk
+            writePage(curFSPNum, fspData, true);
+            free(fspData);
+            fspData = nullptr;
+        }
+        curFSPNum = 0;
         // write counters and total page number
         writePageCounter += 1;  // need to count the last write
         writeHiddenPage();
         handle->close();
         delete(handle);
         handle = nullptr;
-        if (fspData != nullptr) free(fspData);
         return 0;
     }
 }
@@ -274,6 +280,9 @@ RC FileHandle::updateCurFSP(const PageNum &fspNum) {
             // std::cout << "init fsp data " << std::endl; // debug
             fspData = malloc(PAGE_SIZE);
             if (fspData == nullptr) throw std::bad_alloc();
+        } else {
+            // need to save free space to disk first
+            writePage(curFSPNum, fspData, true);
         }
         // std::cout << "load new fsp:" << fspNum << std::endl; // debug
         readPage(fspNum, fspData, true);

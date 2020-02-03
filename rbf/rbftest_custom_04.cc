@@ -55,6 +55,10 @@ int RBFTest_Custom_4(RecordBasedFileManager &rbfm) {
         assert(rc == success && "Inserting a record should not fail.");
     }
 
+    rbfm.closeFile(fileHandle);
+    rc = rbfm.openFile(fileName, fileHandle);
+    assert(rc == success && "Opening the file should not fail.");
+
     // check free space matches
     void *pageData = malloc(PAGE_SIZE);
     for (PageNum i = 0; i < fileHandle.getNumberOfPages(); i++) {
