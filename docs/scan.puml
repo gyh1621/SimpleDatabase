@@ -7,7 +7,7 @@ participant RBFM_ScanIterator as S2
 R1 -> S1: tableName, conditionAttr\ncompOp, value\nattrs
 
 activate S1
-S1 -> S1: getTableFile(tableName)
+S1 -> S1: getTableInfo(tableName)
 S1 -> S1: RBFM::openFile()
 S1 -> S1: getAttributes(tableName)
 

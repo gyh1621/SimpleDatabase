@@ -587,7 +587,8 @@ const void * DataPage::getPageData() {
     return page;
 }
 
-const int DataPage::getFreeSpace() { return freeSpace; }
+const PageFreeSpace DataPage::getFreeSpace() { return freeSpace; }
+const RecordNumber DataPage::getRecordNumber() { return recordNumber; }
 
 SlotNumber DataPage::getSlotNumber() { return slotNumber; }
 

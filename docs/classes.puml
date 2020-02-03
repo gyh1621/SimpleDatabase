@@ -289,12 +289,26 @@ package RM {
         +RC addAttribute(&tableName, &attr)
         +RC dropAttribute(&tableName, &attributeName)
         --
+        -TableID tableNumber
+        -RC insertTuple(&tableName, *data, &rid, sys);
+        -RC deleteTuple(&tableName, &rid, sys);
+        -void getSysTableAttributes(&descriptor)
+        -void getSysColTableAttributes(&descriptor)
+        -void addMetaInfo(&tableName, &descriptor)
+        -int getTableNumber()
+        -void addTablesInfo(&tableName, id)
+        -void addColumnsInfo(&table, &descriptor)
+        -void deleteMetaInfo(&tableName)
+        -RC getTableInfo(&tableName, &id, &fileName)
+        -void getDescriptorString(&descriptor, &attrNames)
+        -bool isSysTable(tableName)
+        --
         #RelationManager()
         #~RelationManager()
         #RelationManager(const RelationManager &)
         #RelationManager &operator=(const RelationManager &)
         --UNIMPLEMENTED--
-        -void getTableFile(&tableID, &fileHandle)
+        -void getTableInfo(&tableID, &fileHandle)
     }
 }
 

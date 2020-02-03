@@ -147,8 +147,9 @@ public:
     /* Return: 0 - exists, -1 - pointer, 1 - deleted record */
     int checkRecordExist(SlotNumber &slotid, RID &newRID);
     const void *getPageData();          // get page data
-    const int getFreeSpace();           // get free space
-    SlotNumber getSlotNumber()    // get page's slot number
+    SlotNumber getSlotNumber();         // get page's slot number
+    const PageFreeSpace getFreeSpace();           // get free space
+    const RecordNumber getRecordNumber();
 };
 
 
