@@ -54,13 +54,14 @@ private:
     // insert meta info of new table into Tables and Columns
     void addMetaInfo(const std::string &tableName, const std::vector<Attribute> &descriptor);
     // get total table numbers
-    int getTableNumbers();
+    TableID getTableNumbers();
     // insert meta info of new table to Tables
     void addTablesInfo(const std::string &tableName, TableID id);
     // insert meta info of new table to Columns;
     void addColumnsInfo(const std::string &table, TableID id, const std::vector<Attribute> &descriptor);
-    // delete meta info of a deleted table
-    void deleteMetaInfo(const std::string &tableName);
+    // delete meta info of a deleted table, always assume table exists
+    // Return: same as scan
+    RC deleteMetaInfo(const std::string &tableName);
     // get table id and fileHandle of a given table;
     // return: 0 - success, -2 - table not exist, others - scan fails
     RC getTableInfo(const std::string &tableName, TableID &id, std::string &fileName);
@@ -68,6 +69,8 @@ private:
     void getDescriptorString(const std::vector<Attribute> &descriptor, std::vector<std::string> &attrNames);
     // judge if a table is a system table
     bool isSysTable(const std::string &tableName);
+    // create TypeVarchar raw data
+    void *createVarcharData(const std::string &str);
 public:
     static RelationManager &instance();
     // return: 0 - succsess, others - fail, same as RecordBasedFileManager::createFile();
@@ -106,7 +109,7 @@ public:
     // Do not store entire results in the scan iterator.
     // Return:
     //   0: success
-    //  -1: table not exists, same as getTableInfo return code
+    //  -2: table not exists, same as getTableInfo return code
     RC scan(const std::string &tableName,
             const std::string &conditionAttribute,
             const CompOp compOp,                  // comparison type such as "<" and "="

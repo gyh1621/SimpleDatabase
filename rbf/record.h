@@ -60,6 +60,10 @@ class Record {
      * */
     static bool isFieldNull(const int &fieldIndex, const void *nullIndicatorData);
 
+public:
+    /* convert TypeVarchar data to string */
+    static std::string getString(const void *data, AttrLength attrLength);
+
 private:
     int size;
     void *record;
@@ -83,7 +87,7 @@ public:
     void convertToRawData(const std::vector<Attribute> &recordDescriptor, void* data);
     void printRecord(const std::vector<Attribute> &recordDescriptor);
 
-    void *getFieldValue(const FieldNumber &fieldIndex);
+    void *getFieldValue(const FieldNumber &fieldIndex, AttrLength &fieldLength);
 };
 
 

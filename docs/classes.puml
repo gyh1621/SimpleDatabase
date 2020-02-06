@@ -119,6 +119,7 @@ package RBF {
         +int getFreeSpace()
         +int checkRecordExist(&slotid, &newRID)
         +void moveRecords(RecordOffset startOffset, targetOffset);
+        +void printSlots()
     }
 
     class FreeSpacePage {
@@ -167,6 +168,7 @@ package RBF {
         {static} -int getRecordActualSize(nullIndicatorSize, rDescriptor, *data);
         {static} -int getNullIndicatorSize(fieldNumber)
         {static} -bool isFieldNull(fieldIndex, *nullIndicatorData)
+        {static} +std::string getString(*data, attrLength)
         -- public methods --
         +Record(*data)
         +Record(rDescriptor, *data)
@@ -176,9 +178,7 @@ package RBF {
         +void *getRecordData()
         +void convertToRawData(rDescriptor, *data)
         +void printRecord(recordDescriptor);
-        +void *getFieldValue(FieldNumber &fieldIndex)
-        -- UNIMPLEMENTED --
-        +
+        +void *getFieldValue(&fieldIndex, &fieldLength)
     }
 
     note left of Record
@@ -218,9 +218,9 @@ package RBFM {
         void *curPageData = nullptr
         --
         -void parseValue(void *rawValue, string &conditionAttrName)
-        -int compare(const void *recordAttrData)
+        -int compare(const void *recordAttrData, const FieldOffset &recordAttrLength)
         --
-        +void setUp(&recordDescriptor, &conditionAttribute, compOp, void *value, &attributeNames, &rbfm_ScanIterator)
+        +void setUp(&recordDescriptor, &conditionAttribute, compOp, void *value, &attributeNames)
         +RC getNextRecord(&rid, *data)
         +RC close()
     }
@@ -295,13 +295,14 @@ package RM {
         -void getSysTableAttributes(&descriptor)
         -void getSysColTableAttributes(&descriptor)
         -void addMetaInfo(&tableName, &descriptor)
-        -int getTableNumber()
+        -TableID getTableNumber()
         -void addTablesInfo(&tableName, id)
         -void addColumnsInfo(&table, &descriptor)
-        -void deleteMetaInfo(&tableName)
+        -RC deleteMetaInfo(&tableName)
         -RC getTableInfo(&tableName, &id, &fileName)
         -void getDescriptorString(&descriptor, &attrNames)
         -bool isSysTable(tableName)
+        -void *createVarcharData(&str)
         --
         #RelationManager()
         #~RelationManager()

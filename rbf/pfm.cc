@@ -372,7 +372,7 @@ DataPage::DataPage(void *data) {
     RecordLength recordLength;
     while (slot >= 0) {
         parseSlot(slot, isPointer, recordOffset, recordLength);
-        if (!isPointer) {
+        if (!isPointer && recordOffset != DeletedRecordOffset) {
             freeSpaceOffset = recordOffset + recordLength;
             break;
         }
@@ -443,8 +443,24 @@ void DataPage::updateSlotInfo(RecordOffset offset, RecordLength length, bool dir
 
 void DataPage::moveRecords(RecordOffset startOffset, RecordOffset targetOffset) {
     auto moveSize = this->freeSpaceOffset - startOffset;
+    //std::cout << targetOffset << " " << startOffset << " " << moveSize << std::endl;  //debug
     memmove((char *) this->page + targetOffset, (char *) this->page + startOffset, moveSize);
     this->freeSpaceOffset = targetOffset + moveSize;
+}
+
+void DataPage::printSlots() {
+    SlotNumber slotPerLine = 10;
+    RecordLength recordLength;
+    RecordOffset recordOffset;
+    SlotPointerIndicator isPointer;
+    for (SlotNumber i = 0; i < slotNumber; i++) {
+        if (i != 0 && i % slotPerLine == 0) std::cout << std::endl;
+        parseSlot(i, isPointer, recordOffset, recordLength);
+        if (isPointer) std::cout << "slot " << i << ": pointer to " << recordOffset << " " << recordLength << "\t";
+        else if (recordOffset == DeletedRecordOffset) std::cout << "slot " << i << ": deleted\t";
+        else std::cout << "slot" << i << ": " << isPointer << " " << recordOffset << " " << recordLength << "\t";
+    }
+    std::cout << std::endl;
 }
 
 SlotNumber DataPage::insertRecord(Record &record) {
@@ -502,7 +518,7 @@ void *DataPage::readRecord(SlotNumber slot) {
 
 void DataPage::readRecordIntoRaw(const SlotNumber slot, const std::vector<Attribute> &recordDescriptor, void* data) {
     void *record = readRecord(slot);
-    asseert(record != nullptr);
+    assert(record != nullptr);
 
     Record r(record);
     r.convertToRawData(recordDescriptor, data);
@@ -557,6 +573,9 @@ void DataPage::updateRecord(Record &updateRecord, RecordLength &slotid) {
         int movedLen = length - newLength;
         moveRecords(offset + length, offset + length - movedLen);
         memcpy((char*)page + offset, updateRecord.getRecordData(), newLength);
+        // update length in the slot
+        auto slotOffset = getNthSlotOffset(slotid) + sizeof(SlotPointerIndicator) + sizeof(RecordOffset);
+        memcpy((char *) page + slotOffset, &newLength, sizeof(RecordLength));
         updateSlotInfo(offset, movedLen, true);
         freeSpace += movedLen;
         freeSpaceOffset -= movedLen;
@@ -819,18 +838,29 @@ void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
     }
 }
 
-void *Record::getFieldValue(const FieldNumber &fieldIndex) {
+void *Record::getFieldValue(const FieldNumber &fieldIndex, AttrLength &fieldLength) {
     FieldOffset startOffset, endOffset;
     if (fieldIndex == 0) {
         startOffset = RecordHeaderSize + fieldNumber * sizeof(FieldOffset);
     } else {
-        memcpy(&startOffset, (char *) record + (fieldIndex - 1) * sizeof(FieldOffset), sizeof(FieldOffset));
+        memcpy(&startOffset, (char *) record + RecordHeaderSize + (fieldIndex - 1) * sizeof(FieldOffset), sizeof(FieldOffset));
     }
-    memcpy(&endOffset, (char *) record + fieldIndex * sizeof(FieldOffset), sizeof(FieldOffset));
-    void *data = malloc(endOffset - startOffset);
-    memcpy(data, (char *) record + startOffset, endOffset - startOffset);
+    memcpy(&endOffset, (char *) record + RecordHeaderSize + fieldIndex * sizeof(FieldOffset), sizeof(FieldOffset));
+    fieldLength = endOffset - startOffset;
+    void *data = malloc(fieldLength);
+    if (data == nullptr) throw std::bad_alloc();
+    memcpy(data, (char *) record + startOffset, fieldLength);
     return data;
 }
+
+std::string Record::getString(const void *data, AttrLength attrLength) {
+    std::string str;
+    for (FieldOffset i = 0; i < attrLength; i++) {
+        str += *((char *) data + i);
+    }
+    return str;
+}
+
 
 Record::~Record() {
     if (!passedData) free(this->record);

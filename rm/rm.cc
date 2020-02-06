@@ -43,7 +43,10 @@ RC RelationManager::createTable(const std::string &tableName, const std::vector<
     TableID id;
     std::string fileName;
     rc = getTableInfo(tableName, id, fileName);
+
+    // table exists
     if(rc == 0) return -2;
+
     if(!isSysTable(tableName)){
         rc = RecordBasedFileManager::instance().createFile(tableName);
         if(rc != 0) return rc;
@@ -60,7 +63,7 @@ RC RelationManager::deleteTable(const std::string &tableName) {
     TableID id;
     std::string fileName;
     rc = getTableInfo(tableName, id, fileName);
-    if(rc != 0) return -2;
+    if(rc != 0) return rc;
     if(!isSysTable(tableName)){
         rc = RecordBasedFileManager::instance().destroyFile(fileName);
         if(rc != 0) return rc;
@@ -73,10 +76,10 @@ RC RelationManager::deleteTable(const std::string &tableName) {
 
 RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attribute> &attrs) {
     if (tableName == SYSTABLE) {
-        getTablesAttributes(attrs);
+        getSysTableAttributes(attrs);
         return 0;
     } else if (tableName == SYSCOLTABLE) {
-        getColumnsAttributes(attrs);
+        getSysColTableAttributes(attrs);
         return 0;
     }
 
@@ -86,33 +89,35 @@ RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attr
     if (rc != 0) return rc;
 
     std::vector<Attribute> descriptor;
-    getColumnsAttributes(descriptor);
+    getSysColTableAttributes(descriptor);
     std::vector<std::string> attrNames;
     getDescriptorString(descriptor, attrNames);
 
     RM_ScanIterator rmsi;
-    rc = scan(SYSCOLTABLE, "table-id", EQ_OP, tableID, attrNames, rmsi);
+    rc = scan(SYSCOLTABLE, "table-id", EQ_OP, &tableID, attrNames, rmsi);
     if (rc != 0) return rc;
 
     void *data = malloc(TUPLE_TMP_SIZE);
     RID rid;
 
+    AttrLength attrLength;
     while (rmsi.getNextTuple(rid, data) != RM_EOF) {
         Record r(descriptor, data);
         Attribute attr;
-        void *data = r.getFieldValue(1);  // column-name
+        void *data = r.getFieldValue(1, attrLength);  // column-name
         if (data == nullptr) throw std::bad_alloc();
-        // TODO: test
-        attr.name = *((std::string *) data);
+        attr.name = Record::getString(data, attrLength);
         free(data);
-        data = r.getFieldValue(2);  // column-type
+        data = r.getFieldValue(2, attrLength);  // column-type
         attr.type = *((AttrType *) data);
         free(data);
-        data = r.getFieldValue(3);  // column-length
+        data = r.getFieldValue(3, attrLength);  // column-length
         attr.length = *((AttrLength *) data);
         free(data);
         attrs.push_back(attr);
     }
+
+    return 0;
 }
 
 RC RelationManager::insertTuple(const std::string &tableName, const void *data, RID &rid) {
@@ -289,58 +294,56 @@ void RelationManager::addMetaInfo(const std::string &tableName, const std::vecto
     addColumnsInfo(tableName, id, descriptor);
 }
 
-int RelationManager::getTableNumbers() {
+TableID RelationManager::getTableNumbers() {
     TableID count = 0;
     FileHandle fileHandle;
-    RecordBasedFileManager::instance().openFile(SYSTABLE, fileHandle);
+    RC rc = RecordBasedFileManager::instance().openFile(SYSTABLE, fileHandle);
+    assert(rc == 0 && "Open file failed");
     PageNum pageNum = fileHandle.dataPageNum;
     void* page = malloc(PAGE_SIZE);
+    if (page == nullptr) throw std::bad_alloc();
     for(int i = 0; i < pageNum; i++){
         fileHandle.readPage(i, page);
         DataPage p(page);
         count += p.getRecordNumber();
     }
     RecordBasedFileManager::instance().closeFile(fileHandle);
+    free(page);
     return count;
 }
 
 void RelationManager::addTablesInfo(const std::string &tableName, TableID id) {
-    FileHandle fileHandle;
-    void* data = malloc(200);
-    RecordBasedFileManager::instance().openFile(SYSTABLE, fileHandle);
+    void* data = malloc(TUPLE_TMP_SIZE);
+    if (data == nullptr) throw std::bad_alloc();
     auto nullPointerSize = ceil(3 / 8.0);
     auto* nullPointer = (unsigned char*)data;
     for(int i = 0; i < nullPointerSize; i++) nullPointer[i] = 0;
 
+    // null pointer
+    memcpy((char *) data, nullPointer, nullPointerSize);
     int dataOffset = nullPointerSize;
     // table-id
-    memcpy((char *)data + dataOffset, &id, sizeof(int));
+    memcpy((char *)data + dataOffset, &id, sizeof(TableID));
     // table-name
-    dataOffset += 4;
+    dataOffset += sizeof(TableID);
     int length = tableName.size();
-    memcpy((char *)data + dataOffset, &length, sizeof(int));
+    memcpy((char *)data + dataOffset, &length, 4);
     dataOffset += 4;
-    memcpy((char *) data + dataOffset, &tableName, length);
+    memcpy((char *) data + dataOffset, tableName.c_str(), length);
     dataOffset += length;
     //file-name;
     memcpy((char *)data + dataOffset, &length, sizeof(int));
     dataOffset += 4;
-    memcpy((char *) data + dataOffset, &tableName, length);
+    memcpy((char *) data + dataOffset, tableName.c_str(), length);
 
-//    std::vector<Attribute> attr;
-//    getSysTableAttributes(attr);
     RID rid;
-//    RecordBasedFileManager::instance().insertRecord(fileHandle, attr, data, rid);
     insertTuple(SYSTABLE, data, rid, true);
     free(data);
-    RecordBasedFileManager::instance().closeFile(fileHandle);
 }
 
 void RelationManager::addColumnsInfo(const std::string &tableName, TableID id, const std::vector<Attribute> &descriptor) {
     std::vector<Attribute> colAttr;
     getSysColTableAttributes(colAttr);
-    FileHandle fileHandle;
-    RecordBasedFileManager::instance().openFile(SYSCOLTABLE, fileHandle);
 
     auto nullPointerSize = ceil(5 / 8.0);
     void* data;
@@ -357,7 +360,7 @@ void RelationManager::addColumnsInfo(const std::string &tableName, TableID id, c
         int length = descriptor[i].name.size();
         memcpy((char *)data + dataOffset, &length, sizeof(int));
         dataOffset += 4;
-        memcpy((char *) data + dataOffset, &descriptor[i].name, length);
+        memcpy((char *) data + dataOffset, descriptor[i].name.c_str(), length);
         dataOffset += length;
         //column-type
         memcpy((char *)data + dataOffset, &descriptor[i].type, sizeof(AttrType));
@@ -369,41 +372,57 @@ void RelationManager::addColumnsInfo(const std::string &tableName, TableID id, c
         int position = i + 1;
         memcpy((char *)data + dataOffset, &position, sizeof(int));
         RID rid;
-//        RecordBasedFileManager::instance().insertRecord(fileHandle, colAttr, data, rid);
         insertTuple(SYSCOLTABLE, data, rid, true);
         free(data);
     }
-    RecordBasedFileManager::instance().closeFile(fileHandle);
 }
 
-void RelationManager::deleteMetaInfo(const std::string &tableName) {
+RC RelationManager::deleteMetaInfo(const std::string &tableName) {
     TableID id;
     std::string fileName;
     getTableInfo(tableName, id, fileName);
+
     RM_ScanIterator rmsi;
+    RID rid;
+    void* data = malloc(TUPLE_TMP_SIZE);
+    if(data == nullptr) throw std::bad_alloc();
+
+    // delete record in sys table
     std::vector<Attribute> descriptor;
     getSysTableAttributes(descriptor);
     std::vector<std::string> attrNames;
     getDescriptorString(descriptor, attrNames);
     RC rc;
-    //TODO: not sure &tableName;
-    rc = scan(SYSTABLE, "table-name", EQ_OP, &tableName, attrNames, rmsi);
-    if(rc != 0) return;
-    RID rid;
-    void* data = malloc(200);
+    void *tableNameData = createVarcharData(tableName);
+    rc = scan(SYSTABLE, "table-name", EQ_OP, tableNameData, attrNames, rmsi);
+    if(rc != 0) {
+        free(tableNameData);
+        free(data);
+        return rc;
+    }
     if(rmsi.getNextTuple(rid, data) != RM_EOF){
-        deleteTuple(SYSTABLE, rid);
+        RC res = deleteTuple(SYSTABLE, rid, true);
+        assert(res == 0 && "delete tuple failed");
     }
     descriptor.clear();
     attrNames.clear();
+    free(tableNameData);
+
+    // delete record in sys column
     getSysColTableAttributes(descriptor);
     getDescriptorString(descriptor, attrNames);
-    rc = scan(SYSCOLTABLE, "Table-id", EQ_OP, &id, attrNames, rmsi);
-    if(rc != 0) return;
+    rc = scan(SYSCOLTABLE, "table-id", EQ_OP, &id, attrNames, rmsi);
+    if(rc != 0) {
+        free(data);
+        return rc;
+    }
     while(rmsi.getNextTuple(rid, data) != RM_EOF){
-        deleteTuple(SYSCOLTABLE, rid);
+        RC res = deleteTuple(SYSCOLTABLE, rid);
+        assert(res == 0 && "delete tuple failed");
     }
     free(data);
+
+    return 0;
 }
 
 void RelationManager::getDescriptorString(const std::vector<Attribute> &descriptor, std::vector<std::string> &attrNames) {
@@ -431,7 +450,8 @@ RC RelationManager::getTableInfo(const std::string &tableName, TableID &id, std:
     std::vector<std::string> attrNames;
     getDescriptorString(descriptor, attrNames);
     RC rc;
-    rc = scan(SYSTABLE, "table-name", EQ_OP, &tableName, attrNames, rmsi);
+    void *tableNameData = createVarcharData(tableName);
+    rc = scan(SYSTABLE, "table-name", EQ_OP, tableNameData, attrNames, rmsi);
     if(rc != 0) return rc;
     if(rmsi.getNextTuple(rid, data) != RM_EOF){
         // 1 bit nullIndicator
@@ -459,6 +479,16 @@ RC RelationManager::getTableInfo(const std::string &tableName, TableID &id, std:
 
 bool RelationManager::isSysTable(const std::string &tableName) {
     return tableName == SYSTABLE || tableName == SYSCOLTABLE;
+}
+
+void* RelationManager::createVarcharData(const std::string &str) {
+    const char *chars = str.c_str();
+    void *data = malloc(4 + str.length());
+    if (data == nullptr) throw std::bad_alloc();
+    unsigned length = str.length();
+    memcpy(data, &length, 4);
+    memcpy((char *) data + 4, chars, str.length());
+    return data;
 }
 
 // Extra credit work

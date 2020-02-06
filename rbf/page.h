@@ -150,6 +150,9 @@ public:
     SlotNumber getSlotNumber();         // get page's slot number
     const PageFreeSpace getFreeSpace();           // get free space
     const RecordNumber getRecordNumber();
+
+    // only for debugging purpose, print all records' offset
+    void printSlots();
 };
 
 

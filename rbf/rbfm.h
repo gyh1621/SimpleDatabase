@@ -53,7 +53,7 @@ private:
     void parseValue(const void *rawValue, const std::string& conditionAttrName);
 
     /* compare, Return: 0 - record = condition, 1 - >, -1 - < */
-    int compare(const void *recordAttrData);
+    int compare(const void *recordAttrData, const FieldOffset &recordAttrLength);
 
 public:
     RBFM_ScanIterator() = default;;
@@ -65,8 +65,7 @@ public:
                const std::string &conditionAttribute,
                CompOp compOp,                  // comparision type such as "<" and "="
                const void *value,                    // used in the comparison
-               const std::vector<std::string> &attributeNames, // a list of projected attributes
-               RBFM_ScanIterator &rbfm_ScanIterator);
+               const std::vector<std::string> &attributeNames);  // a list of projected attributes
 
     // Never keep the results in the memory. When getNextRecord() is called,
     // a satisfying record needs to be fetched from the file.
@@ -74,6 +73,7 @@ public:
     // Return: 0 - success, RBFM_EOF - end
     RC getNextRecord(RID &rid, void *data);
 
+    // return - 0
     RC close();
 };
 

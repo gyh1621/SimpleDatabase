@@ -73,7 +73,7 @@ print("Start running tests...")
 for i, test in enumerate(tests):
     print("Running {}/{} tests...".format(i + 1, len(tests)), end="\r")
     output, err, code = run_command(cmd.format(test_path=test))
-    if code != 0 or err or "test case failed" in output.lower():
+    if code != 0 or "test case failed" in output.lower():
         fail_tests.append((test, output, err))
     else:
         success_tests.append((test, output, err))
