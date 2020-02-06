@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstring>
 #include "pfm.h"
+#include "record.h"
+
 
 PagedFileManager &PagedFileManager::instance() {
     static PagedFileManager _pf_manager = PagedFileManager();
@@ -483,19 +485,25 @@ RecordLength DataPage::getRecordSize(SlotNumber slot) {
     return length;
 }
 
-void DataPage::readRecordIntoRaw(const SlotNumber slot, const std::vector<Attribute> &recordDescriptor, void* data) {
+void *DataPage::readRecord(SlotNumber slot) {
     RecordOffset offset;
     RecordLength length;
     SlotPointerIndicator isPointer;
 
     parseSlot(slot, isPointer, offset, length);
-    assert(isPointer == 0); // should not be a pointer
+    if (isPointer || offset == DeletedRecordOffset) return nullptr;
 
-    void* record = malloc(length);
-    if (record == nullptr) throw std::bad_alloc();
-    memset(record, 0, length);
+    void *data = malloc(length);
+    if (data == nullptr) throw std::bad_alloc();
+    memcpy(data, (char *) page + offset, length);
 
-    memcpy(record, (char *)page + offset, length);
+    return data;
+}
+
+void DataPage::readRecordIntoRaw(const SlotNumber slot, const std::vector<Attribute> &recordDescriptor, void* data) {
+    void *record = readRecord(slot);
+    asseert(record != nullptr);
+
     Record r(record);
     r.convertToRawData(recordDescriptor, data);
     free(record);
@@ -581,6 +589,8 @@ const void * DataPage::getPageData() {
 
 const int DataPage::getFreeSpace() { return freeSpace; }
 
+SlotNumber DataPage::getSlotNumber() { return slotNumber; }
+
 
 // ========================================================================================
 //                                     Record Class
@@ -621,6 +631,7 @@ int Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<
                 size += *charLength;
                 offset += sizeof(unsigned) + *charLength;
                 break;
+            default: break;
         }
     }
     delete(charLength);
@@ -715,8 +726,13 @@ const void * Record::getRecordData() {
 }
 
 void Record::convertToRawData(const std::vector<Attribute> &recordDescriptor, void *data) {
+    FieldNumber actualFieldNumber = 0;
+    for (Attribute attr: recordDescriptor) {
+        if (attr.type == AttrType::TypeNull) continue;
+        else actualFieldNumber++;
+    }
     // init null indicators
-    auto nullPointerSize = getNullIndicatorSize(fieldNumber);
+    auto nullPointerSize = getNullIndicatorSize(actualFieldNumber);
     auto* nullPointer = (unsigned char*)data;
     for (int i = 0; i < nullPointerSize; i++) nullPointer[i] = 0;
 
@@ -729,10 +745,18 @@ void Record::convertToRawData(const std::vector<Attribute> &recordDescriptor, vo
     // pointer of field value section of data
     int dataOffset = nullPointerSize;
 
+    int jumped = 0;
     for(int i = 0; i < fieldNumber; i++){
         fieldEndOffset = *((FieldOffset *)((char *)record + startOffset + sizeof(FieldOffset) * i));
-        int byteNum = i / 8;
+
         Attribute attr = recordDescriptor[i];
+        if (attr.type == AttrType::TypeNull) {
+            lastFieldEndOffset = fieldEndOffset == 0 ? lastFieldEndOffset : fieldEndOffset;
+            jumped++;
+            continue;
+        }
+
+        int byteNum = (i - jumped) / 8;
         auto fieldLength = fieldEndOffset - lastFieldEndOffset;
         if(fieldEndOffset == 0){  // null field
             nullPointer[byteNum] |= ((char) 1) << (8 - (i % 8) - 1);
@@ -767,6 +791,7 @@ void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
             std::cout << "NULL";
         } else {
             switch(attr.type){
+                default: break;
                 case AttrType::TypeInt:
                     memcpy(&intAttrVal, (char *)record + lastFieldEndOffset, sizeof(int));
                     std::cout << intAttrVal;
@@ -791,6 +816,19 @@ void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
             std::cout << " ";
         }
     }
+}
+
+void *Record::getFieldValue(const FieldNumber &fieldIndex) {
+    FieldOffset startOffset, endOffset;
+    if (fieldIndex == 0) {
+        startOffset = RecordHeaderSize + fieldNumber * sizeof(FieldOffset);
+    } else {
+        memcpy(&startOffset, (char *) record + (fieldIndex - 1) * sizeof(FieldOffset), sizeof(FieldOffset));
+    }
+    memcpy(&endOffset, (char *) record + fieldIndex * sizeof(FieldOffset), sizeof(FieldOffset));
+    void *data = malloc(endOffset - startOffset);
+    memcpy(data, (char *) record + startOffset, endOffset - startOffset);
+    return data;
 }
 
 Record::~Record() {

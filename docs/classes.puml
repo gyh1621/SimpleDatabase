@@ -108,7 +108,9 @@ package RBF {
         +~DataPage() = default
         +void deleteSlot(slot)
         +RecordLength getRecordSize(slot)
+        +SlotNumber getSlotNumber()
         +SlotNumber insertRecord(record)
+        +void *readRecord(SlotNumber slot)
         +void readRecordIntoRaw(slot, &recordDescriptor, *data)
         +void deleteRecord(slotID)
         +void updateRecord(&updateRecord, &slotid)
@@ -142,6 +144,7 @@ package RBF {
         TypeInt = 0
         TypeReal
         TypeVarChar
+        TypeNull
     }
 
     Attribute --|>AttrType
@@ -173,6 +176,7 @@ package RBF {
         +void *getRecordData()
         +void convertToRawData(rDescriptor, *data)
         +void printRecord(recordDescriptor);
+        +void *getFieldValue(FieldNumber &fieldIndex)
         -- UNIMPLEMENTED --
         +
     }
@@ -202,6 +206,21 @@ package RBFM {
     }
 
     class RBFM_ScanIterator {
+        FileHandle *fileHandle
+        std::vector<Attribute> descriptor
+        std::vector<Attribute> projectedDescriptor
+        FieldNumber conditionAttrFieldIndex
+        Attribute conditionAttr
+        CompOp compOp = NO_OP
+        void *value = nullptr
+        PageNum curPageNum
+        SlotNumber nextSlotNum
+        void *curPageData = nullptr
+        --
+        -void parseValue(void *rawValue, string &conditionAttrName)
+        -int compare(const void *recordAttrData)
+        --
+        +void setUp(&recordDescriptor, &conditionAttribute, compOp, void *value, &attributeNames, &rbfm_ScanIterator)
         +RC getNextRecord(&rid, *data)
         +RC close()
     }
@@ -245,6 +264,10 @@ package RM {
     end note
 
     class RM_ScanIterator {
+        +FileHandle fileHandle
+        +RBFM_ScanIterator rbfm_ScanIterator
+        --
+        +void setUp(&tableFileName, &conditionAttribute, compOp, void *value, &attributeNames, descriptor)
         +RC getNextTuple(&rid, *data)
         +RC close()
     }

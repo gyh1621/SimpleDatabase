@@ -69,6 +69,9 @@ class DataPage {
      *       2. when slot is a pointer: offset is page id, len is slot id
      *       3. types of offset and len are same to RID's pageNum and slotNum
      *       4. record offset points to the first byte of the record
+     *       5. once a slot is created, it will never be deleted. If corresponding record is deleted,
+     *          the slot will marked as Deleted but still exists. If corresponding record is moved to
+     *          another page, the slot will become a pointer.
      */
 
 
@@ -124,6 +127,10 @@ public:
     /* get record length, always assume record exists in this page */
     RecordLength getRecordSize(SlotNumber slot);
 
+    /* get record formatted raw data */
+    // if slot is not an actual record, return nullptr
+    void *readRecord(SlotNumber slot);
+
     // always assume record exists in this page
     void readRecordIntoRaw(SlotNumber slot, const std::vector<Attribute> &recordDescriptor, void* data);
 
@@ -141,6 +148,7 @@ public:
     int checkRecordExist(SlotNumber &slotid, RID &newRID);
     const void *getPageData();          // get page data
     const int getFreeSpace();           // get free space
+    SlotNumber getSlotNumber()    // get page's slot number
 };
 
 

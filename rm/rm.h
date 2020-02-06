@@ -8,17 +8,31 @@
 
 # define RM_EOF (-1)  // end of a scan operator
 
+# define TUPLE_TMP_SIZE PAGE_SIZE
+
 // RM_ScanIterator is an iterator to go through tuples
 class RM_ScanIterator {
+private:
+
 public:
+    FileHandle fileHandle;
+
+    RBFM_ScanIterator rbfm_ScanIterator;
+
     RM_ScanIterator() = default;
 
     ~RM_ScanIterator() = default;
 
-    // "data" follows the same format as RelationManager::insertTuple()
-    RC getNextTuple(RID &rid, void *data) { return RM_EOF; };
+    void setUp(const std::string &tableFileName, const std::string &conditionAttribute,
+               CompOp compOp, const void *value, const std::vector<std::string> &attributeNames,
+               std::vector<Attribute> descriptor);
 
-    RC close() { return -1; };
+    // "data" follows the same format as RelationManager::insertTuple()
+    // Return: 0 - success, RM_EOF: end
+    RC getNextTuple(RID &rid, void *data);
+
+    // Return: same as RecordBasedFileManager::closeFile
+    RC close();
 };
 
 // Relation Manager
@@ -34,6 +48,10 @@ public:
 
     RC deleteTable(const std::string &tableName);
 
+    /* Return:
+     *  0 - success
+     *  -1 - table not exists
+     */
     RC getAttributes(const std::string &tableName, std::vector<Attribute> &attrs);
 
     RC insertTuple(const std::string &tableName, const void *data, RID &rid);
@@ -52,6 +70,9 @@ public:
 
     // Scan returns an iterator to allow the caller to go through the results one by one.
     // Do not store entire results in the scan iterator.
+    // Return:
+    //   0: success
+    //  -1: table not exists, same as getTableInfo return code
     RC scan(const std::string &tableName,
             const std::string &conditionAttribute,
             const CompOp compOp,                  // comparison type such as "<" and "="

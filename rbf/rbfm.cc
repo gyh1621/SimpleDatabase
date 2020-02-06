@@ -192,7 +192,8 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const std::vect
 RC RecordBasedFileManager::scan(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                 const std::string &conditionAttribute, const CompOp compOp, const void *value,
                                 const std::vector<std::string> &attributeNames, RBFM_ScanIterator &rbfm_ScanIterator) {
-    return -1;
+    rbfm_ScanIterator.setUp(fileHandle, recordDescriptor, conditionAttribute, compOp, value, attributeNames);
+    return 0;
 }
 
 int RecordBasedFileManager::findRecordActualRID(FileHandle &fileHandle, RID &rid, bool deletePointer) {
@@ -214,4 +215,156 @@ int RecordBasedFileManager::findRecordActualRID(FileHandle &fileHandle, RID &rid
     }
     free(pageData);
     return result;
+}
+
+void RBFM_ScanIterator::parseValue(const void *rawValue, const std::string& conditionAttrName) {
+    this->conditionAttr.type = TypeNull;
+    // find AttrType
+    for (const Attribute& attr: this->descriptor) {
+        if (attr.name == conditionAttrName) {
+            this->conditionAttr = attr;
+            break;
+        }
+    }
+    if (this->conditionAttr.type == TypeNull) {
+        throw std::invalid_argument("cannot find AttrType of condition attribute in descriptor");
+    }
+
+    // assign value
+    unsigned offset = 0;
+    if (this->conditionAttr.type == AttrType::TypeVarChar) {
+        memcpy(&this->conditionAttr.length, rawValue, 4);
+        offset += 4;
+    } else {
+        throw std::invalid_argument("unexpected AttrType");
+    }
+    this->value = malloc(this->conditionAttr.length);
+    if (this->value == nullptr) throw std::bad_alloc();
+    memcpy(this->value, (char *) rawValue + offset, this->conditionAttr.length);
+}
+
+void RBFM_ScanIterator::setUp(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
+                         const std::string &conditionAttribute, const CompOp compOp, const void *value,
+                         const std::vector<std::string> &attributeNames, RBFM_ScanIterator &rbfm_ScanIterator) {
+    this->fileHandle = &fileHandle;
+    this->descriptor = recordDescriptor;
+    this->compOp = compOp;
+    if (this->compOp != NO_OP) parseValue(value, conditionAttribute);
+
+    // create projected descriptor and get condition attribute's index
+    // TODO: add test
+    unsigned i = 0;
+    for (const std::string& attrName: attributeNames) {
+        while (i != this->descriptor.size() ) {
+            if (attrName == conditionAttribute && compOp != NO_OP) {
+                this->conditionAttrFieldIndex = i;
+            }
+
+            if (attrName == this->descriptor[i].name) break;
+            Attribute attr;
+            attr.type = AttrType::TypeNull;
+            this->projectedDescriptor.push_back(attr);
+            i++;
+        }
+        if (i == this->descriptor.size()) throw std::invalid_argument("cannot create projected descriptor");
+        Attribute attr = this->descriptor[i];
+        this->projectedDescriptor.push_back(attr);
+        i++;
+    }
+    while (i != this->descriptor.size()) {
+        Attribute attr;
+        attr.type = AttrType::TypeNull;
+        this->projectedDescriptor.push_back(attr);
+        i++;
+    }
+    assert(this->projectedDescriptor.size() == this->descriptor.size() && "create projected descriptor failed");
+}
+
+int RBFM_ScanIterator::compare(const void *recordAttrData) {
+    if (conditionAttr.type == TypeInt) {
+        int conditionValue, recordValue;
+        memcpy(&conditionValue, value, conditionAttr.length);
+        memcpy(&recordValue, recordAttrData, conditionAttr.length);
+        if (conditionValue == recordValue) return 0;
+        else if (recordValue > conditionValue) return 1;
+        else return -1;
+    } else if (conditionAttr.type == TypeReal) {
+        double conditionValue, recordValue;
+        memcpy(&conditionValue, value, conditionAttr.length);
+        memcpy(&recordValue, recordAttrData, conditionAttr.length);
+        if (conditionValue == recordValue) return 0;
+        else if (recordValue > conditionValue) return 1;
+        else return -1;
+    } else if (conditionAttr.type == TypeVarChar) {
+        std::string conditionValue((char *) value);
+        std::string recordValue((char *) recordAttrData);
+        return recordValue.compare(conditionValue);
+    } else {
+        throw std::invalid_argument("unknown attribute type");
+    }
+}
+
+RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
+    if (curPageNum == fileHandle->getNumberOfPages()) return RBFM_EOF;
+
+    // load page data
+    if (curPageData == nullptr) {
+        curPageData = malloc(PAGE_SIZE);
+        if (curPageData == nullptr) throw std::bad_alloc();
+        fileHandle->readPage(curPageNum, curPageData);
+    }
+
+    DataPage page(curPageData);
+    // get next slot with record exists
+    RID tmpRID;
+    void *recordData = nullptr;
+    void *recordAttrData = nullptr;
+    while (nextSlotNum != page.getSlotNumber()) {
+        if (page.checkRecordExist(nextSlotNum, tmpRID) != 0) {  // deleted or pointer slot
+            nextSlotNum++;
+        } else {  // compare
+            if (compOp == NO_OP) break;
+            recordData = page.readRecord(nextSlotNum);
+            assert(recordData != nullptr);  // should not be nullptr
+            Record r(recordData);
+            recordAttrData = r.getFieldValue(conditionAttrFieldIndex);
+
+            int compareResult = compare(recordAttrData);
+            if (compareResult == 0) {
+                if (compOp == EQ_OP || compOp == LE_OP || compOp == GE_OP) break;
+            } else if (compareResult > 0) {  // record attr value > condition value
+                if (compOp == GT_OP || compOp == GE_OP || compOp == NE_OP) break;
+            } else if (compareResult < 0) {  // record attr value < condition value
+                if (compOp == LT_OP || compOp == LE_OP || compOp == NE_OP) break;
+            }
+
+            // compare failed
+            nextSlotNum++;
+        }
+    }
+
+    if (recordAttrData != nullptr) free(recordAttrData);
+
+    if (nextSlotNum == page.getSlotNumber()) {
+        if (recordData != nullptr) free(recordData);
+        // read next page
+        curPageNum++;
+        if (curPageData != nullptr) free(curPageData);
+        nextSlotNum = 0;
+        return getNextRecord(rid, data);
+    } else {
+        // find in current page
+        rid.pageNum = curPageNum;
+        rid.slotNum = nextSlotNum;
+        Record r(recordData);
+        r.convertToRawData(projectedDescriptor, data);
+        nextSlotNum++;
+        if (recordData != nullptr) free(recordData);
+        return 0;
+    }
+}
+
+RC RBFM_ScanIterator::close() {
+    if (value != nullptr) free(value);
+    if (curPageData != nullptr) free(curPageData);
 }

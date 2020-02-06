@@ -15,7 +15,7 @@ typedef struct {
 
 // Attribute
 typedef enum {
-    TypeInt = 0, TypeReal, TypeVarChar
+    TypeInt = 0, TypeReal, TypeVarChar, TypeNull
 } AttrType;
 
 typedef unsigned AttrLength;
@@ -82,6 +82,8 @@ public:
     // convert record from the implemented format to the given format
     void convertToRawData(const std::vector<Attribute> &recordDescriptor, void* data);
     void printRecord(const std::vector<Attribute> &recordDescriptor);
+
+    void *getFieldValue(const FieldNumber &fieldIndex);
 };
 
 

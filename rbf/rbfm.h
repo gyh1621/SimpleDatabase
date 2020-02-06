@@ -35,17 +35,46 @@ typedef enum {
 //  rbfmScanIterator.close();
 
 class RBFM_ScanIterator {
+private:
+    FileHandle *fileHandle;
+    std::vector<Attribute> descriptor;
+    std::vector<Attribute> projectedDescriptor;
+    FieldNumber conditionAttrFieldIndex;
+    // if TypeVarchar, attr.length is actual length
+    Attribute conditionAttr;
+    CompOp compOp = NO_OP;
+    void *value = nullptr;
+
+    PageNum curPageNum;
+    SlotNumber nextSlotNum;
+    void *curPageData = nullptr;
+
+    /* parse condition attribute's type and value, use when compOp != NO_OP */
+    void parseValue(const void *rawValue, const std::string& conditionAttrName);
+
+    /* compare, Return: 0 - record = condition, 1 - >, -1 - < */
+    int compare(const void *recordAttrData);
+
 public:
     RBFM_ScanIterator() = default;;
 
     ~RBFM_ScanIterator() = default;;
 
+    void setUp(FileHandle &fileHandle,
+               const std::vector<Attribute> &recordDescriptor,
+               const std::string &conditionAttribute,
+               CompOp compOp,                  // comparision type such as "<" and "="
+               const void *value,                    // used in the comparison
+               const std::vector<std::string> &attributeNames, // a list of projected attributes
+               RBFM_ScanIterator &rbfm_ScanIterator);
+
     // Never keep the results in the memory. When getNextRecord() is called,
     // a satisfying record needs to be fetched from the file.
     // "data" follows the same format as RecordBasedFileManager::insertRecord().
-    RC getNextRecord(RID &rid, void *data) { return RBFM_EOF; };
+    // Return: 0 - success, RBFM_EOF - end
+    RC getNextRecord(RID &rid, void *data);
 
-    RC close() { return -1; };
+    RC close();
 };
 
 class RecordBasedFileManager {
