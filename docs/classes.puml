@@ -179,6 +179,7 @@ package RBF {
         +void convertToRawData(rDescriptor, *data)
         +void printRecord(recordDescriptor);
         +void *getFieldValue(&fieldIndex, &fieldLength)
+        +int readAttr(&recordDescriptor, &attributeName, void *data)
     }
 
     note left of Record

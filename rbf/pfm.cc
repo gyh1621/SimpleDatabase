@@ -861,6 +861,48 @@ std::string Record::getString(const void *data, AttrLength attrLength) {
     return str;
 }
 
+int Record::readAttr(const std::vector<Attribute> &recordDescriptor, const std::string &attributeName, void *data) {
+    // init null indicator
+    auto* nullPointer = (unsigned char*) data;
+    nullPointer[0] = 0;
+
+    // offset of Offset Section
+    auto offsetStart = RecordHeaderSize;
+    // end offset of last field
+    auto lastFieldEndOffset = RecordHeaderSize + fieldNumber * sizeof(FieldOffset);
+    auto fieldEndOffset = 0;
+    // offset of target data
+    auto dataOffset = 1;
+
+    int i;
+    for(i = 0; i < recordDescriptor.size(); i++){
+        fieldEndOffset = *((FieldOffset *)((char *) record + offsetStart + sizeof(FieldOffset) * i));
+        if (recordDescriptor[i].name == attributeName) {
+            break;
+        }
+        lastFieldEndOffset = fieldEndOffset;
+    }
+
+    // attribute not found
+    if(i == recordDescriptor.size()){
+        return -1;
+    }
+
+    // null field
+    if(fieldEndOffset == 0) {
+        nullPointer[0] != ((char) 1) << 7;
+        return 0;
+    }
+
+    auto length = fieldEndOffset - lastFieldEndOffset;
+    if (recordDescriptor[i].type == AttrType::TypeVarChar) {
+        memcpy((char *) data + dataOffset, &length, sizeof(unsigned));
+        dataOffset += sizeof(unsigned);
+    }
+    memcpy((char *) data + dataOffset, (char *) record + lastFieldEndOffset, length);
+    return 0;
+}
+
 
 Record::~Record() {
     if (!passedData) free(this->record);

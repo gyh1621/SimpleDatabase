@@ -298,6 +298,10 @@ TableID RelationManager::getTableNumbers() {
     TableID count = 0;
     FileHandle fileHandle;
     RC rc = RecordBasedFileManager::instance().openFile(SYSTABLE, fileHandle);
+    if (rc == -1) {
+        // catalog not created
+        return count;
+    }
     assert(rc == 0 && "Open file failed");
     PageNum pageNum = fileHandle.dataPageNum;
     void* page = malloc(PAGE_SIZE);

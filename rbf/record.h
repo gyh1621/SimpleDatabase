@@ -88,6 +88,9 @@ public:
     void printRecord(const std::vector<Attribute> &recordDescriptor);
 
     void *getFieldValue(const FieldNumber &fieldIndex, AttrLength &fieldLength);
+
+    // return: 0 - success, -1 - target attribute name not found
+    int readAttr(const std::vector<Attribute> &recordDescriptor, const std::string &attributeName, void* data);
 };
 
 

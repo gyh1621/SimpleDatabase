@@ -144,6 +144,7 @@ public:
                     const RID &rid);
 
     // Read an attribute given its name and the rid.
+    // return: 0 - success, -2 - attribute name not in descriptor, other - fail, same as readRecord.
     RC readAttribute(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor, const RID &rid,
                      const std::string &attributeName, void *data);
 

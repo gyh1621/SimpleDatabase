@@ -226,7 +226,16 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const std::vecto
 
 RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                          const RID &rid, const std::string &attributeName, void *data) {
-    return -1;
+    RC rc;
+    void* targetRecord = malloc(PAGE_SIZE);
+    if (targetRecord == nullptr) throw std::bad_alloc();
+    rc = readRecord(fileHandle, recordDescriptor, rid, targetRecord);
+    if(rc != 0) return -1;
+    Record record(recordDescriptor, targetRecord);
+    rc = record.readAttr(recordDescriptor, attributeName, data);
+    if(rc != 0) return -2;
+    free(targetRecord);
+    return rc;
 }
 
 RC RecordBasedFileManager::scan(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
