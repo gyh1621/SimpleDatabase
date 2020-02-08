@@ -59,7 +59,7 @@ RC PagedFileManager::openFile(const std::string &fileName, FileHandle &fileHandl
     if (fileHandle.isOccupied()) return 1;
     FILE* file = fopen(fileName.c_str(), "rb");
     if(file == nullptr){
-        fclose(file);
+        // fclose(file);
         // std::cout << "File not exists" << std::endl; // debug
         return -1;
     }
@@ -370,11 +370,11 @@ DataPage::DataPage(void *data) {
     SlotPointerIndicator isPointer;
     RecordOffset recordOffset;
     RecordLength recordLength;
+    // freeSpaceOffset is the maximum record offset
     while (slot >= 0) {
         parseSlot(slot, isPointer, recordOffset, recordLength);
         if (!isPointer && recordOffset != DeletedRecordOffset) {
-            freeSpaceOffset = recordOffset + recordLength;
-            break;
+            freeSpaceOffset = std::max(freeSpaceOffset, recordOffset + recordLength);
         }
         slot--;
     }
@@ -840,12 +840,17 @@ void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
 
 void *Record::getFieldValue(const FieldNumber &fieldIndex, AttrLength &fieldLength) {
     FieldOffset startOffset, endOffset;
+    memcpy(&endOffset, (char *) record + RecordHeaderSize + fieldIndex * sizeof(FieldOffset), sizeof(FieldOffset));
+    if (endOffset == 0) {
+        // null value
+        fieldLength = 0;
+        return nullptr;
+    }
     if (fieldIndex == 0) {
         startOffset = RecordHeaderSize + fieldNumber * sizeof(FieldOffset);
     } else {
         memcpy(&startOffset, (char *) record + RecordHeaderSize + (fieldIndex - 1) * sizeof(FieldOffset), sizeof(FieldOffset));
     }
-    memcpy(&endOffset, (char *) record + RecordHeaderSize + fieldIndex * sizeof(FieldOffset), sizeof(FieldOffset));
     fieldLength = endOffset - startOffset;
     void *data = malloc(fieldLength);
     if (data == nullptr) throw std::bad_alloc();

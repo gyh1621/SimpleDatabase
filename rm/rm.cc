@@ -35,6 +35,7 @@ RC RelationManager::deleteCatalog() {
     rc = RecordBasedFileManager::instance().destroyFile(SYSTABLE);
     if(rc != 0) return rc;
     rc = RecordBasedFileManager::instance().destroyFile(SYSCOLTABLE);
+    tableNumber = 0;
     return rc;
 }
 
@@ -46,7 +47,6 @@ RC RelationManager::createTable(const std::string &tableName, const std::vector<
 
     // table exists
     if(rc == 0) return -2;
-
     if(!isSysTable(tableName)){
         rc = RecordBasedFileManager::instance().createFile(tableName);
         if(rc != 0) return rc;
@@ -95,7 +95,10 @@ RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attr
 
     RM_ScanIterator rmsi;
     rc = scan(SYSCOLTABLE, "table-id", EQ_OP, &tableID, attrNames, rmsi);
-    if (rc != 0) return rc;
+    if (rc != 0) {
+        rmsi.close();
+        return rc;
+    }
 
     void *data = malloc(TUPLE_TMP_SIZE);
     RID rid;
@@ -104,18 +107,20 @@ RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attr
     while (rmsi.getNextTuple(rid, data) != RM_EOF) {
         Record r(descriptor, data);
         Attribute attr;
-        void *data = r.getFieldValue(1, attrLength);  // column-name
-        if (data == nullptr) throw std::bad_alloc();
-        attr.name = Record::getString(data, attrLength);
-        free(data);
-        data = r.getFieldValue(2, attrLength);  // column-type
-        attr.type = *((AttrType *) data);
-        free(data);
-        data = r.getFieldValue(3, attrLength);  // column-length
-        attr.length = *((AttrLength *) data);
-        free(data);
+        void *attrData = r.getFieldValue(1, attrLength);  // column-name
+        attr.name = Record::getString(attrData, attrLength);
+        free(attrData);
+        attrData = r.getFieldValue(2, attrLength);  // column-type
+        attr.type = *((AttrType *) attrData);
+        free(attrData);
+        attrData = r.getFieldValue(3, attrLength);  // column-length
+        attr.length = *((AttrLength *) attrData);
+        free(attrData);
         attrs.push_back(attr);
     }
+
+    free(data);
+    rmsi.close();
 
     return 0;
 }
@@ -289,7 +294,8 @@ void RelationManager::getSysColTableAttributes(std::vector<Attribute> &descripto
 }
 
 void RelationManager::addMetaInfo(const std::string &tableName, const std::vector<Attribute> &descriptor) {
-    TableID id = ++tableNumber;
+    tableNumber++;
+    TableID id = tableNumber;
     addTablesInfo(tableName, id);
     addColumnsInfo(tableName, id, descriptor);
 }
@@ -309,10 +315,37 @@ TableID RelationManager::getTableNumbers() {
     for(int i = 0; i < pageNum; i++){
         fileHandle.readPage(i, page);
         DataPage p(page);
-        count += p.getRecordNumber();
+//        count += p.getRecordNumber();
+        count += p.getSlotNumber();
     }
     RecordBasedFileManager::instance().closeFile(fileHandle);
-    free(page);
+//    RM_ScanIterator rmsi;
+//    RID rid;
+//    void* data = malloc(TUPLE_TMP_SIZE);
+//    if(data == nullptr) throw std::bad_alloc();
+//    std::vector<Attribute> descriptor;
+//    getSysTableAttributes(descriptor);
+//    std::vector<std::string> attrNames;
+//    getDescriptorString(descriptor, attrNames);
+//    rc = scan(SYSTABLE, "", NO_OP, NULL, attrNames, rmsi);
+//    if (rc != 0) {
+//        rmsi.close();
+//        return rc;
+//    }
+
+//    AttrLength attrLength;
+//    while(rmsi.getNextTuple(rid, data) != RM_EOF){
+//        Record record(descriptor, data);
+//        void *attrData = record.getFieldValue(0, attrLength);
+//        TableID newID = *((TableID *) attrData);
+//        if(newID > count){
+//            count = newID;
+//        }
+//        free(attrData);
+//    }
+        free(page);
+//    free(data);
+//    rmsi.close();
     return count;
 }
 
@@ -402,6 +435,7 @@ RC RelationManager::deleteMetaInfo(const std::string &tableName) {
     if(rc != 0) {
         free(tableNameData);
         free(data);
+        rmsi.close();
         return rc;
     }
     if(rmsi.getNextTuple(rid, data) != RM_EOF){
@@ -411,20 +445,22 @@ RC RelationManager::deleteMetaInfo(const std::string &tableName) {
     descriptor.clear();
     attrNames.clear();
     free(tableNameData);
-
+    rmsi.close();
     // delete record in sys column
     getSysColTableAttributes(descriptor);
     getDescriptorString(descriptor, attrNames);
     rc = scan(SYSCOLTABLE, "table-id", EQ_OP, &id, attrNames, rmsi);
     if(rc != 0) {
         free(data);
+        rmsi.close();
         return rc;
     }
     while(rmsi.getNextTuple(rid, data) != RM_EOF){
-        RC res = deleteTuple(SYSCOLTABLE, rid);
+        RC res = deleteTuple(SYSCOLTABLE, rid, true);
         assert(res == 0 && "delete tuple failed");
     }
     free(data);
+    rmsi.close();
 
     return 0;
 }
@@ -448,7 +484,8 @@ RC RelationManager::getTableInfo(const std::string &tableName, TableID &id, std:
     }
     RM_ScanIterator rmsi;
     RID rid;
-    void* data = malloc(200);
+    void* data = malloc(TUPLE_TMP_SIZE);
+    if (data == nullptr) throw std::bad_alloc();
     std::vector<Attribute> descriptor;
     getSysTableAttributes(descriptor);
     std::vector<std::string> attrNames;
@@ -456,7 +493,12 @@ RC RelationManager::getTableInfo(const std::string &tableName, TableID &id, std:
     RC rc;
     void *tableNameData = createVarcharData(tableName);
     rc = scan(SYSTABLE, "table-name", EQ_OP, tableNameData, attrNames, rmsi);
-    if(rc != 0) return rc;
+    if(rc != 0) {
+        free(tableNameData);
+        free(data);
+        rmsi.close();
+        return rc;
+    }
     if(rmsi.getNextTuple(rid, data) != RM_EOF){
         // 1 bit nullIndicator
         int offset = 1;
@@ -474,11 +516,16 @@ RC RelationManager::getTableInfo(const std::string &tableName, TableID &id, std:
         delete[](varchar);
         //get fileHandle
         fileName = s;
+        free(tableNameData);
+        free(data);
+        rmsi.close();
+        return 0;
     }else{
+        free(tableNameData);
+        free(data);
+        rmsi.close();
         return -2;
     }
-    free(data);
-    return 0;
 }
 
 bool RelationManager::isSysTable(const std::string &tableName) {
@@ -505,11 +552,45 @@ RC RelationManager::addAttribute(const std::string &tableName, const Attribute &
     return -1;
 }
 
+void RelationManager::printSysTable(const std::string &tableName) {
+    if (!isSysTable(tableName)) return;
+    FileHandle fileHandle;
+    void *pageData = malloc(PAGE_SIZE);
+    std::string fileName;
+    TableID tableId;
+    getTableInfo(tableName, tableId, fileName);
+    RecordBasedFileManager::instance().openFile(fileName, fileHandle);
+    for (PageNum pageNum = 0; pageNum < fileHandle.getNumberOfPages(); pageNum++) {
+        fileHandle.readPage(pageNum, pageData);
+        DataPage page(pageData);
+        for (SlotNumber slot = 0; slot < page.getSlotNumber(); slot++) {
+            RID tmp;
+            if (page.checkRecordExist(slot, tmp) != 0) {
+                std::cout << "DELETED SLOT" << std::endl;
+                continue;
+            }
+            void *recordData = page.readRecord(slot);
+            AttrLength attrLength;
+            Record r(recordData);
+            void *attrData = r.getFieldValue(0, attrLength);
+            std::cout << *(TableID *) (attrData) << " ";
+            free(attrData);
+            attrData = r.getFieldValue(1, attrLength);
+
+            std::string tableName = r.getString(attrData, attrLength);
+            std::cout << tableName << std::endl;
+            free(attrData);
+            free(recordData);
+        }
+    }
+    free(pageData);
+}
 
 void RM_ScanIterator::setUp(const std::string &tableFileName, const std::string &conditionAttribute, const CompOp compOp,
                             const void *value, const std::vector<std::string> &attributeNames,
                             const std::vector<Attribute> descriptor) {
-    RecordBasedFileManager::instance().openFile(tableFileName, this->fileHandle);
+    RC rc = RecordBasedFileManager::instance().openFile(tableFileName, this->fileHandle);
+    assert(rc == 0 && "open file fail");
     RecordBasedFileManager::instance().scan(
             this->fileHandle, descriptor, conditionAttribute,
             compOp, value, attributeNames, this->rbfm_ScanIterator);

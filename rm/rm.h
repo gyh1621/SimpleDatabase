@@ -122,6 +122,9 @@ public:
 
     RC dropAttribute(const std::string &tableName, const std::string &attributeName);
 
+    // print sys table
+    void printSysTable(const std::string &tableName);
+
 protected:
     RelationManager();                                                  // Prevent construction
     ~RelationManager();                                                 // Prevent unwanted destruction

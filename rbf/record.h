@@ -87,6 +87,7 @@ public:
     void convertToRawData(const std::vector<Attribute> &recordDescriptor, void* data);
     void printRecord(const std::vector<Attribute> &recordDescriptor);
 
+    // if null field, return nullptr
     void *getFieldValue(const FieldNumber &fieldIndex, AttrLength &fieldLength);
 
     // return: 0 - success, -1 - target attribute name not found

@@ -41,6 +41,6 @@ else
 fi
 
 # install valgrind
-sudo apt install -y valgrind
+# sudo apt install -y valgrind
 
 exit 0

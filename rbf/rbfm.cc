@@ -312,6 +312,10 @@ void RBFM_ScanIterator::setUp(FileHandle &fileHandle, const std::vector<Attribut
                          const std::vector<std::string> &attributeNames) {
     curPageNum = 0;
     nextSlotNum = 0;
+    if (this->value != nullptr) {
+        free(this->value);
+        this->value = nullptr;
+    }
     if (curPageData != nullptr) {
         free(curPageData);
         curPageData = nullptr;
@@ -348,6 +352,7 @@ void RBFM_ScanIterator::setUp(FileHandle &fileHandle, const std::vector<Attribut
 }
 
 int RBFM_ScanIterator::compare(const void *recordAttrData, const FieldOffset &recordAttrLength) {
+    if (recordAttrData == nullptr) return -1;  // TODO: what if conditionValue is also null
     if (conditionAttr.type == TypeInt) {
         int conditionValue, recordValue;
         memcpy(&conditionValue, value, conditionAttr.length);
@@ -409,6 +414,12 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
 
             // compare failed
             nextSlotNum++;
+            free(recordData);
+            recordData = nullptr;
+            if (recordAttrData != nullptr) {
+                free(recordAttrData);
+                recordAttrData = nullptr;
+            }
         }
     }
 
@@ -437,7 +448,13 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
 }
 
 RC RBFM_ScanIterator::close() {
-    if (value != nullptr) free(value);
-    if (curPageData != nullptr) free(curPageData);
+    if (value != nullptr) {
+        free(value);
+        value = nullptr;
+    }
+    if (curPageData != nullptr) {
+        free(curPageData);
+        curPageData = nullptr;
+    }
     return 0;
 }

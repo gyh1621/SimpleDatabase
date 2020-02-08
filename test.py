@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+import argparse
 import subprocess
 
 
@@ -12,31 +13,23 @@ if not os.path.exists(executable_dir):
     sys.exit(1)
 os.chdir(executable_dir)
 
-valgrind_cmd = (
-    "G_SLICE=always-malloc G_DEBUG=gc-friendly  "
-    + "valgrind -v --tool=memcheck --leak-check=full --num-callers=40 {test_path}"
+arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument(
+    "-p", "--prefix", action="store", help="run tests with specific prefix"
 )
+args = arg_parser.parse_args()
 
-tests_order_map = {"rbftest": "0", "rmtest_create_tables": "1", "rmtest": "2"}
+test_orders = [
+    "rbftest\_\d+",
+    "rbftest\_custom\_\d+",
+    "rmtest_create_tables",
+    "rmtest_delete_tables",
+    "rmtest_create_tables",
+    "rmtest\_\d+",
+    "rmtest\_custom\_\d+",
+]
 
-
-def get_test_order(test_name):
-    test_name = os.path.basename(test_name)
-    name, suffix = os.path.splitext(test_name)
-    if name in tests_order_map:
-        return tests_order_map[name] + name
-    prefix, left = name.split("_", 1)
-    if prefix in tests_order_map:
-        return tests_order_map[prefix] + name
-    else:
-        print("illegal test name format:" + test_name)
-        sys.exit(1)
-
-
-if len(sys.argv) > 1 and sys.argv[1] == "mem":
-    cmd = valgrind_cmd
-else:
-    cmd = "{test_path}"
+cmd = "{test_path}"
 
 
 def run_command(cmd):
@@ -55,15 +48,18 @@ def print_test(test, output, err, code):
     print("Exit code:", code, end="\n\n")
 
 
-tests, fail_tests, success_tests = [], [], []
+unordered_tests, fail_tests, success_tests = [], [], []
 for f in os.listdir():
-    if (
-        os.path.isfile(f)
-        and re.match(".*?test[^\.]*?", f)
-        and os.access(f, os.X_OK)
-    ):
-        tests.append(os.path.abspath(f))
-tests.sort(key=get_test_order)
+    if os.path.isfile(f) and re.match(".*?test[^\.]*?", f) and os.access(f, os.X_OK):
+        if args.prefix and not os.path.basename(f).startswith(args.prefix):
+            continue
+        unordered_tests.append(os.path.abspath(f))
+unordered_tests.sort()
+tests = []
+for order in test_orders:
+    for name in unordered_tests:
+        if re.search(order, name):
+            tests.append(name)
 print("ALL TESTS:")
 for test in tests:
     print(test)

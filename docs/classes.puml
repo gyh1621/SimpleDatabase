@@ -101,11 +101,11 @@ package RBF {
         // n starts from 0
         -{static} int getNthSlotOffset(n)
         -SlotNumber getFirstAvailableSlot()
-        -void parseSlot(slot, isPointer, recordOffset, recordLen)
         -void updateSlotInfo(offset, length, bool dir);
         --
         +DataPage(*data)
         +~DataPage() = default
+        +void parseSlot(slot, isPointer, recordOffset, recordLen)
         +void deleteSlot(slot)
         +RecordLength getRecordSize(slot)
         +SlotNumber getSlotNumber()

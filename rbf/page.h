@@ -92,11 +92,6 @@ private:
      * */
     static int getNthSlotOffset(SlotNumber n);
 
-    /* Parse a slot
-     * slot starts from 0 and from right to left
-     * */
-    void parseSlot(int slot, SlotPointerIndicator &isPointer, RecordOffset &recordOffset, RecordLength &recordLen);
-
     /* Get first available slot */
     SlotNumber getFirstAvailableSlot();
 
@@ -114,6 +109,11 @@ public:
     DataPage& operator=(const DataPage&) = delete;                  // copy assignment, implement when needed
     DataPage& operator=(DataPage&&) = delete;                       // move assignment, implement when needed
     ~DataPage() = default;
+
+    /* Parse a slot
+     * slot starts from 0 and from right to left
+     * */
+    void parseSlot(int slot, SlotPointerIndicator &isPointer, RecordOffset &recordOffset, RecordLength &recordLen);
 
     // set target slot to indicate that record is deleted;
     // offset will be set to PAGE_SIZE
