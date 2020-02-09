@@ -1,0 +1,229 @@
+2020-02-08T09:36:53.3893674Z ========= rmtest_05 ==========
+2020-02-08T09:36:53.3893834Z ==7020== Memcheck, a memory error detector
+2020-02-08T09:36:53.3894910Z ==7020== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+2020-02-08T09:36:53.3895545Z ==7020== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
+2020-02-08T09:36:53.3896572Z ==7020== Command: /home/runner/work/cs222p-winter20-team-14/cs222p-winter20-team-14/cmake-build-debug/rmtest_05
+2020-02-08T09:36:53.3896776Z ==7020==
+2020-02-08T09:36:53.3897235Z --7020-- Valgrind options:
+2020-02-08T09:36:53.3897673Z --7020--    -v
+2020-02-08T09:36:53.3898122Z --7020--    --tool=memcheck
+2020-02-08T09:36:53.3898561Z --7020--    --leak-check=full
+2020-02-08T09:36:53.3899018Z --7020--    --num-callers=40
+2020-02-08T09:36:53.3899491Z --7020-- Contents of /proc/version:
+2020-02-08T09:36:53.3900259Z --7020--   Linux version 5.0.0-1028-azure (buildd@lcy01-amd64-028) (gcc version 7.4.0 (Ubuntu 7.4.0-1ubuntu1~18.04.1)) #30~18.04.1-Ubuntu SMP Fri Dec 6 11:47:59 UTC 2019
+2020-02-08T09:36:53.3900725Z --7020--
+2020-02-08T09:36:53.3901305Z --7020-- Arch and hwcaps: AMD64, LittleEndian, amd64-cx16-lzcnt-rdtscp-sse3-avx-avx2-bmi
+2020-02-08T09:36:53.3901865Z --7020-- Page sizes: currently 4096, max supported 4096
+2020-02-08T09:36:53.3902372Z --7020-- Valgrind library directory: /usr/lib/valgrind
+2020-02-08T09:36:53.3903010Z --7020-- Reading syms from /home/runner/work/cs222p-winter20-team-14/cs222p-winter20-team-14/cmake-build-debug/rmtest_05
+2020-02-08T09:36:53.3903565Z --7020-- Reading syms from /lib/x86_64-linux-gnu/ld-2.27.so
+2020-02-08T09:36:53.3904102Z --7020--   Considering /lib/x86_64-linux-gnu/ld-2.27.so ..
+2020-02-08T09:36:53.3904637Z --7020--   .. CRC mismatch (computed 1b7c895e wanted 2943108a)
+2020-02-08T09:36:53.3905189Z --7020--   Considering /usr/lib/debug/lib/x86_64-linux-gnu/ld-2.27.so ..
+2020-02-08T09:36:53.3905643Z --7020--   .. CRC is valid
+2020-02-08T09:36:53.3906165Z --7020-- Reading syms from /usr/lib/valgrind/memcheck-amd64-linux
+2020-02-08T09:36:53.3906698Z --7020--   Considering /usr/lib/valgrind/memcheck-amd64-linux ..
+2020-02-08T09:36:53.3907239Z --7020--   .. CRC mismatch (computed 41ddb025 wanted 9972f546)
+2020-02-08T09:36:53.3907870Z --7020--    object doesn't have a symbol table
+2020-02-08T09:36:53.3908376Z --7020--    object doesn't have a dynamic symbol table
+2020-02-08T09:36:53.3908914Z --7020-- Scheduler: using generic scheduler lock implementation.
+2020-02-08T09:36:53.3909448Z --7020-- Reading suppressions file: /usr/lib/valgrind/default.supp
+2020-02-08T09:36:53.3910027Z ==7020== embedded gdbserver: reading from /tmp/vgdb-pipe-from-vgdb-to-7020-by-runner-on-???
+2020-02-08T09:36:53.3910639Z ==7020== embedded gdbserver: writing to   /tmp/vgdb-pipe-to-vgdb-from-7020-by-runner-on-???
+2020-02-08T09:36:53.3911264Z ==7020== embedded gdbserver: shared mem   /tmp/vgdb-pipe-shared-mem-vgdb-7020-by-runner-on-???
+2020-02-08T09:36:53.3911470Z ==7020==
+2020-02-08T09:36:53.3911632Z ==7020== TO CONTROL THIS PROCESS USING vgdb (which you probably
+2020-02-08T09:36:53.3912172Z ==7020== don't want to do, unless you know exactly what you're doing,
+2020-02-08T09:36:53.3912377Z ==7020== or are doing some strange experiment):
+2020-02-08T09:36:53.3912917Z ==7020==   /usr/lib/valgrind/../../bin/vgdb --pid=7020 ...command...
+2020-02-08T09:36:53.3913092Z ==7020==
+2020-02-08T09:36:53.3913280Z ==7020== TO DEBUG THIS PROCESS USING GDB: start GDB like this
+2020-02-08T09:36:53.3913933Z ==7020==   /path/to/gdb /home/runner/work/cs222p-winter20-team-14/cs222p-winter20-team-14/cmake-build-debug/rmtest_05
+2020-02-08T09:36:53.3914151Z ==7020== and then give GDB the following command
+2020-02-08T09:36:53.3914669Z ==7020==   target remote | /usr/lib/valgrind/../../bin/vgdb --pid=7020
+2020-02-08T09:36:53.3915209Z ==7020== --pid is optional if only one valgrind process is running
+2020-02-08T09:36:53.3915397Z ==7020==
+2020-02-08T09:36:53.3915968Z --7020-- REDIR: 0x401f2f0 (ld-linux-x86-64.so.2:strlen) redirected to 0x580608c1 (???)
+2020-02-08T09:36:53.3916549Z --7020-- REDIR: 0x401f0d0 (ld-linux-x86-64.so.2:index) redirected to 0x580608db (???)
+2020-02-08T09:36:53.3917108Z --7020-- Reading syms from /usr/lib/valgrind/vgpreload_core-amd64-linux.so
+2020-02-08T09:36:53.3917677Z --7020--   Considering /usr/lib/valgrind/vgpreload_core-amd64-linux.so ..
+2020-02-08T09:36:53.3918223Z --7020--   .. CRC mismatch (computed 50df1b30 wanted 4800a4cf)
+2020-02-08T09:36:53.3918844Z --7020--    object doesn't have a symbol table
+2020-02-08T09:36:53.3919379Z --7020-- Reading syms from /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so
+2020-02-08T09:36:53.3919950Z --7020--   Considering /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so ..
+2020-02-08T09:36:53.3920500Z --7020--   .. CRC mismatch (computed f893b962 wanted 95ee359e)
+2020-02-08T09:36:53.3920996Z --7020--    object doesn't have a symbol table
+2020-02-08T09:36:53.3921511Z ==7020== WARNING: new redirection conflicts with existing -- ignoring it
+2020-02-08T09:36:53.3922097Z --7020--     old: 0x0401f2f0 (strlen              ) R-> (0000.0) 0x580608c1 ???
+2020-02-08T09:36:53.3922688Z --7020--     new: 0x0401f2f0 (strlen              ) R-> (2007.0) 0x04c32db0 strlen
+2020-02-08T09:36:53.3923292Z --7020-- REDIR: 0x401d360 (ld-linux-x86-64.so.2:strcmp) redirected to 0x4c33ee0 (strcmp)
+2020-02-08T09:36:53.3923899Z --7020-- REDIR: 0x401f830 (ld-linux-x86-64.so.2:mempcpy) redirected to 0x4c374f0 (mempcpy)
+2020-02-08T09:36:53.3924465Z --7020-- Reading syms from /usr/lib/x86_64-linux-gnu/libasan.so.2.0.0
+2020-02-08T09:36:53.3924967Z --7020--    object doesn't have a symbol table
+2020-02-08T09:36:53.3925509Z --7020-- Reading syms from /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.25
+2020-02-08T09:36:53.3925994Z --7020--    object doesn't have a symbol table
+2020-02-08T09:36:53.3926536Z --7020-- Reading syms from /lib/x86_64-linux-gnu/libm-2.27.so
+2020-02-08T09:36:53.3926853Z --7020--   Considering /lib/x86_64-linux-gnu/libm-2.27.so ..
+2020-02-08T09:36:53.3927171Z --7020--   .. CRC mismatch (computed 7feae033 wanted b29b2508)
+2020-02-08T09:36:53.3927672Z --7020--   Considering /usr/lib/debug/lib/x86_64-linux-gnu/libm-2.27.so ..
+2020-02-08T09:36:53.3927936Z --7020--   .. CRC is valid
+2020-02-08T09:36:53.3928258Z --7020-- Reading syms from /usr/lib/x86_64-linux-gnu/libubsan.so.0.0.0
+2020-02-08T09:36:53.3928645Z --7020--    object doesn't have a symbol table
+2020-02-08T09:36:53.3928959Z --7020-- Reading syms from /lib/x86_64-linux-gnu/libgcc_s.so.1
+2020-02-08T09:36:53.3929237Z --7020--    object doesn't have a symbol table
+2020-02-08T09:36:53.3929549Z --7020-- Reading syms from /lib/x86_64-linux-gnu/libc-2.27.so
+2020-02-08T09:36:53.3929862Z --7020--   Considering /lib/x86_64-linux-gnu/libc-2.27.so ..
+2020-02-08T09:36:53.3930179Z --7020--   .. CRC mismatch (computed b1c74187 wanted 042cc048)
+2020-02-08T09:36:53.3930487Z --7020--   Considering /usr/lib/debug/lib/x86_64-linux-gnu/libc-2.27.so ..
+2020-02-08T09:36:53.3930764Z --7020--   .. CRC is valid
+2020-02-08T09:36:53.3931078Z --7020-- Reading syms from /lib/x86_64-linux-gnu/libpthread-2.27.so
+2020-02-08T09:36:53.3931447Z --7020--   Considering /usr/lib/debug/.build-id/28/c6aade70b2d40d1f0f3d0a1a0cad1ab816448f.debug ..
+2020-02-08T09:36:53.3931722Z --7020--   .. build-id is valid
+2020-02-08T09:36:53.3932038Z --7020-- Reading syms from /lib/x86_64-linux-gnu/libdl-2.27.so
+2020-02-08T09:36:53.3932356Z --7020--   Considering /lib/x86_64-linux-gnu/libdl-2.27.so ..
+2020-02-08T09:36:53.3932672Z --7020--   .. CRC mismatch (computed bd82fa02 wanted d1fdccc9)
+2020-02-08T09:36:53.3932986Z --7020--   Considering /usr/lib/debug/lib/x86_64-linux-gnu/libdl-2.27.so ..
+2020-02-08T09:36:53.3933264Z --7020--   .. CRC is valid
+2020-02-08T09:36:53.3933571Z --7020-- Reading syms from /lib/x86_64-linux-gnu/librt-2.27.so
+2020-02-08T09:36:53.3933970Z --7020--   Considering /lib/x86_64-linux-gnu/librt-2.27.so ..
+2020-02-08T09:36:53.3934286Z --7020--   .. CRC mismatch (computed 16979484 wanted f9e041e3)
+2020-02-08T09:36:53.3934611Z --7020--   Considering /usr/lib/debug/lib/x86_64-linux-gnu/librt-2.27.so ..
+2020-02-08T09:36:53.3934875Z --7020--   .. CRC is valid
+2020-02-08T09:36:53.3935219Z --7020-- REDIR: 0x74a5c70 (libc.so.6:memmove) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3935582Z --7020-- REDIR: 0x74a4d40 (libc.so.6:strncpy) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3935951Z --7020-- REDIR: 0x74a5f50 (libc.so.6:strcasecmp) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3936389Z --7020-- REDIR: 0x74a4790 (libc.so.6:strcat) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3936732Z --7020-- REDIR: 0x74a4d70 (libc.so.6:rindex) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3937090Z --7020-- REDIR: 0x74a77c0 (libc.so.6:rawmemchr) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3937451Z --7020-- REDIR: 0x74a5de0 (libc.so.6:mempcpy) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3937808Z --7020-- REDIR: 0x74a5c10 (libc.so.6:bcmp) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3938152Z --7020-- REDIR: 0x74a4d00 (libc.so.6:strncmp) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3938508Z --7020-- REDIR: 0x74a4800 (libc.so.6:strcmp) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3938870Z --7020-- REDIR: 0x74a5d40 (libc.so.6:memset) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3939230Z --7020-- REDIR: 0x74c30f0 (libc.so.6:wcschr) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3939584Z --7020-- REDIR: 0x74a4ca0 (libc.so.6:strnlen) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3939924Z --7020-- REDIR: 0x74a4870 (libc.so.6:strcspn) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3940284Z --7020-- REDIR: 0x74a5fa0 (libc.so.6:strncasecmp) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3940640Z --7020-- REDIR: 0x74a4840 (libc.so.6:strcpy) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3941007Z --7020-- REDIR: 0x74a60e0 (libc.so.6:memcpy@@GLIBC_2.14) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3941353Z --7020-- REDIR: 0x74a4da0 (libc.so.6:strpbrk) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3941774Z --7020-- REDIR: 0x74a47c0 (libc.so.6:index) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3942131Z --7020-- REDIR: 0x74a4c70 (libc.so.6:strlen) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3942486Z --7020-- REDIR: 0x74af6c0 (libc.so.6:memrchr) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3942848Z --7020-- REDIR: 0x74a5ff0 (libc.so.6:strcasecmp_l) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3943188Z --7020-- REDIR: 0x74a5be0 (libc.so.6:memchr) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3943542Z --7020-- REDIR: 0x74c3eb0 (libc.so.6:wcslen) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3943894Z --7020-- REDIR: 0x74a5050 (libc.so.6:strspn) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3944246Z --7020-- REDIR: 0x74a5f20 (libc.so.6:stpncpy) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3944584Z --7020-- REDIR: 0x74a5ef0 (libc.so.6:stpcpy) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3944945Z --7020-- REDIR: 0x74a77f0 (libc.so.6:strchrnul) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3945316Z --7020-- REDIR: 0x74a6040 (libc.so.6:strncasecmp_l) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3945679Z --7020-- REDIR: 0x75388a0 (libc.so.6:__memcpy_chk) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3946024Z --7020-- REDIR: 0x4ed46c0 (libasan.so.2:calloc) redirected to 0x4c31a70 (calloc)
+2020-02-08T09:36:53.3946355Z --7020-- REDIR: 0x4ed4530 (libasan.so.2:malloc) redirected to 0x4c2faa0 (malloc)
+2020-02-08T09:36:53.3946696Z --7020-- REDIR: 0x4ed41f0 (libasan.so.2:free) redirected to 0x4c30cd0 (free)
+2020-02-08T09:36:53.3947052Z --7020-- REDIR: 0x74a4cd0 (libc.so.6:strncat) redirected to 0x4a2a6e0 (_vgnU_ifunc_wrapper)
+2020-02-08T09:36:53.3947202Z ==7020==Shadow memory range interleaves with an existing memory mapping. ASan cannot proceed correctly. ABORTING.
+2020-02-08T09:36:53.3947332Z ==7020==Process memory map follows:
+2020-02-08T09:36:53.3947708Z 	0x000000108000-0x000000240000	/home/runner/work/cs222p-winter20-team-14/cs222p-winter20-team-14/cmake-build-debug/rmtest_05
+2020-02-08T09:36:53.3948188Z 	0x000000440000-0x000000441000	/home/runner/work/cs222p-winter20-team-14/cs222p-winter20-team-14/cmake-build-debug/rmtest_05
+2020-02-08T09:36:53.3948594Z 	0x000000441000-0x00000053f000	/home/runner/work/cs222p-winter20-team-14/cs222p-winter20-team-14/cmake-build-debug/rmtest_05
+2020-02-08T09:36:53.3948924Z 	0x000004000000-0x000004027000	/lib/x86_64-linux-gnu/ld-2.27.so
+2020-02-08T09:36:53.3949194Z 	0x000004027000-0x000004030000
+2020-02-08T09:36:53.3949473Z 	0x000004034000-0x000004038000
+2020-02-08T09:36:53.3949750Z 	0x00000403a000-0x000004041000
+2020-02-08T09:36:53.3950060Z 	0x000004227000-0x000004228000	/lib/x86_64-linux-gnu/ld-2.27.so
+2020-02-08T09:36:53.3950370Z 	0x000004228000-0x000004229000	/lib/x86_64-linux-gnu/ld-2.27.so
+2020-02-08T09:36:53.3950654Z 	0x000004229000-0x00000422a000
+2020-02-08T09:36:53.3950939Z 	0x00000422a000-0x00000422b000
+2020-02-08T09:36:53.3951267Z 	0x000004a2a000-0x000004a2b000	/usr/lib/valgrind/vgpreload_core-amd64-linux.so
+2020-02-08T09:36:53.3951600Z 	0x000004a2b000-0x000004c2a000	/usr/lib/valgrind/vgpreload_core-amd64-linux.so
+2020-02-08T09:36:53.3951940Z 	0x000004c2a000-0x000004c2b000	/usr/lib/valgrind/vgpreload_core-amd64-linux.so
+2020-02-08T09:36:53.3952280Z 	0x000004c2b000-0x000004c2c000	/usr/lib/valgrind/vgpreload_core-amd64-linux.so
+2020-02-08T09:36:53.3952623Z 	0x000004c2c000-0x000004c3b000	/usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so
+2020-02-08T09:36:53.3952954Z 	0x000004c3b000-0x000004e3a000	/usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so
+2020-02-08T09:36:53.3953306Z 	0x000004e3a000-0x000004e3b000	/usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so
+2020-02-08T09:36:53.3953656Z 	0x000004e3b000-0x000004e3c000	/usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so
+2020-02-08T09:36:53.3953993Z 	0x000004e3c000-0x000004f2f000	/usr/lib/x86_64-linux-gnu/libasan.so.2.0.0
+2020-02-08T09:36:53.3954400Z 	0x000004f2f000-0x00000512e000	/usr/lib/x86_64-linux-gnu/libasan.so.2.0.0
+2020-02-08T09:36:53.3954724Z 	0x00000512e000-0x000005131000	/usr/lib/x86_64-linux-gnu/libasan.so.2.0.0
+2020-02-08T09:36:53.3955060Z 	0x000005131000-0x000005132000	/usr/lib/x86_64-linux-gnu/libasan.so.2.0.0
+2020-02-08T09:36:53.3955346Z 	0x000005132000-0x000005da7000
+2020-02-08T09:36:53.3955673Z 	0x000005da7000-0x000005f20000	/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.25
+2020-02-08T09:36:53.3955999Z 	0x000005f20000-0x000006120000	/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.25
+2020-02-08T09:36:53.3956335Z 	0x000006120000-0x00000612a000	/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.25
+2020-02-08T09:36:53.3956675Z 	0x00000612a000-0x00000612c000	/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.25
+2020-02-08T09:36:53.3956962Z 	0x00000612c000-0x000006130000
+2020-02-08T09:36:53.3957265Z 	0x000006130000-0x0000062cd000	/lib/x86_64-linux-gnu/libm-2.27.so
+2020-02-08T09:36:53.3957596Z 	0x0000062cd000-0x0000064cc000	/lib/x86_64-linux-gnu/libm-2.27.so
+2020-02-08T09:36:53.3957926Z 	0x0000064cc000-0x0000064cd000	/lib/x86_64-linux-gnu/libm-2.27.so
+2020-02-08T09:36:53.3958253Z 	0x0000064cd000-0x0000064ce000	/lib/x86_64-linux-gnu/libm-2.27.so
+2020-02-08T09:36:53.3958570Z 	0x0000064ce000-0x00000651a000	/usr/lib/x86_64-linux-gnu/libubsan.so.0.0.0
+2020-02-08T09:36:53.3958909Z 	0x00000651a000-0x000006719000	/usr/lib/x86_64-linux-gnu/libubsan.so.0.0.0
+2020-02-08T09:36:53.3959241Z 	0x000006719000-0x00000671b000	/usr/lib/x86_64-linux-gnu/libubsan.so.0.0.0
+2020-02-08T09:36:53.3959578Z 	0x00000671b000-0x00000671e000	/usr/lib/x86_64-linux-gnu/libubsan.so.0.0.0
+2020-02-08T09:36:53.3959867Z 	0x00000671e000-0x0000071ef000
+2020-02-08T09:36:53.3960169Z 	0x0000071ef000-0x000007206000	/lib/x86_64-linux-gnu/libgcc_s.so.1
+2020-02-08T09:36:53.3960491Z 	0x000007206000-0x000007405000	/lib/x86_64-linux-gnu/libgcc_s.so.1
+2020-02-08T09:36:53.3960814Z 	0x000007405000-0x000007406000	/lib/x86_64-linux-gnu/libgcc_s.so.1
+2020-02-08T09:36:53.3961142Z 	0x000007406000-0x000007407000	/lib/x86_64-linux-gnu/libgcc_s.so.1
+2020-02-08T09:36:53.3961450Z 	0x000007407000-0x0000075ee000	/lib/x86_64-linux-gnu/libc-2.27.so
+2020-02-08T09:36:53.3961850Z 	0x0000075ee000-0x0000077ee000	/lib/x86_64-linux-gnu/libc-2.27.so
+2020-02-08T09:36:53.3962171Z 	0x0000077ee000-0x0000077f2000	/lib/x86_64-linux-gnu/libc-2.27.so
+2020-02-08T09:36:53.3962495Z 	0x0000077f2000-0x0000077f4000	/lib/x86_64-linux-gnu/libc-2.27.so
+2020-02-08T09:36:53.3962761Z 	0x0000077f4000-0x0000077f8000
+2020-02-08T09:36:53.3963086Z 	0x0000077f8000-0x000007812000	/lib/x86_64-linux-gnu/libpthread-2.27.so
+2020-02-08T09:36:53.3963422Z 	0x000007812000-0x000007a11000	/lib/x86_64-linux-gnu/libpthread-2.27.so
+2020-02-08T09:36:53.3963750Z 	0x000007a11000-0x000007a12000	/lib/x86_64-linux-gnu/libpthread-2.27.so
+2020-02-08T09:36:53.3964065Z 	0x000007a12000-0x000007a13000	/lib/x86_64-linux-gnu/libpthread-2.27.so
+2020-02-08T09:36:53.3964355Z 	0x000007a13000-0x000007a17000
+2020-02-08T09:36:53.3964679Z 	0x000007a17000-0x000007a1a000	/lib/x86_64-linux-gnu/libdl-2.27.so
+2020-02-08T09:36:53.3965004Z 	0x000007a1a000-0x000007c19000	/lib/x86_64-linux-gnu/libdl-2.27.so
+2020-02-08T09:36:53.3965317Z 	0x000007c19000-0x000007c1a000	/lib/x86_64-linux-gnu/libdl-2.27.so
+2020-02-08T09:36:53.3965645Z 	0x000007c1a000-0x000007c1b000	/lib/x86_64-linux-gnu/libdl-2.27.so
+2020-02-08T09:36:53.3965966Z 	0x000007c1b000-0x000007c22000	/lib/x86_64-linux-gnu/librt-2.27.so
+2020-02-08T09:36:53.3966284Z 	0x000007c22000-0x000007e21000	/lib/x86_64-linux-gnu/librt-2.27.so
+2020-02-08T09:36:53.3966591Z 	0x000007e21000-0x000007e22000	/lib/x86_64-linux-gnu/librt-2.27.so
+2020-02-08T09:36:53.3966912Z 	0x000007e22000-0x000007e23000	/lib/x86_64-linux-gnu/librt-2.27.so
+2020-02-08T09:36:53.3972344Z 	0x000007e23000-0x000008175000
+2020-02-08T09:36:53.3972938Z 	0x000008175000-0x000008575000
+2020-02-08T09:36:53.3973245Z 	0x000058000000-0x00005823b000	/usr/lib/valgrind/memcheck-amd64-linux
+2020-02-08T09:36:53.3973578Z 	0x00005843b000-0x000058441000	/usr/lib/valgrind/memcheck-amd64-linux
+2020-02-08T09:36:53.3974047Z 	0x000058441000-0x000059e43000
+2020-02-08T09:36:53.3974324Z 	0x001002001000-0x001002bd8000
+2020-02-08T09:36:53.3974594Z 	0x001002be8000-0x001002c12000
+2020-02-08T09:36:53.3974872Z 	0x001002c8c000-0x001002ca8000
+2020-02-08T09:36:53.3975150Z 	0x001002ca8000-0x001002caa000
+2020-02-08T09:36:53.3975426Z 	0x001002caa000-0x001002daa000
+2020-02-08T09:36:53.3975686Z 	0x001002daa000-0x001002dac000
+2020-02-08T09:36:53.3976028Z 	0x001002dac000-0x001002dad000	/tmp/vgdb-pipe-shared-mem-vgdb-7020-by-runner-on-???
+2020-02-08T09:36:53.3976326Z 	0x001002dad000-0x001004ef9000
+2020-02-08T09:36:53.3976601Z 	0x0010050f9000-0x0010054f9000
+2020-02-08T09:36:53.3976860Z 	0x0010055f9000-0x0010058f9000
+2020-02-08T09:36:53.3977136Z 	0x0010059f9000-0x001005af9000
+2020-02-08T09:36:53.3977413Z 	0x001005dee000-0x001006030000
+2020-02-08T09:36:53.3977687Z 	0x001ffeffe000-0x001fff001000
+2020-02-08T09:36:53.3977959Z 	0x7fffcb49e000-0x7fffcb4bf000	[stack]
+2020-02-08T09:36:53.3978253Z 	0x7fffcb5b0000-0x7fffcb5b3000	[vvar]
+2020-02-08T09:36:53.3978548Z 	0xffffffffff600000-0xffffffffff601000	[vsyscall]
+2020-02-08T09:36:53.3978667Z ==7020==End of process memory map.
+2020-02-08T09:36:53.3978760Z ==7020==
+2020-02-08T09:36:53.3978866Z ==7020== HEAP SUMMARY:
+2020-02-08T09:36:53.3978972Z ==7020==     in use at exit: 32 bytes in 1 blocks
+2020-02-08T09:36:53.3979070Z ==7020==   total heap usage: 9 allocs, 8 frees, 628 bytes allocated
+2020-02-08T09:36:53.3979184Z ==7020==
+2020-02-08T09:36:53.3979475Z ==7020== Searching for pointers to 1 not-freed blocks
+2020-02-08T09:36:53.3979649Z ==7020== Checked 29,114,016 bytes
+2020-02-08T09:36:53.3979742Z ==7020==
+2020-02-08T09:36:53.3979844Z ==7020== LEAK SUMMARY:
+2020-02-08T09:36:53.3979951Z ==7020==    definitely lost: 0 bytes in 0 blocks
+2020-02-08T09:36:53.3980062Z ==7020==    indirectly lost: 0 bytes in 0 blocks
+2020-02-08T09:36:53.3980156Z ==7020==      possibly lost: 0 bytes in 0 blocks
+2020-02-08T09:36:53.3980269Z ==7020==    still reachable: 32 bytes in 1 blocks
+2020-02-08T09:36:53.3980383Z ==7020==         suppressed: 0 bytes in 0 blocks
+2020-02-08T09:36:53.3980498Z ==7020== Reachable blocks (those to which a pointer was found) are not shown.
+2020-02-08T09:36:53.3980914Z ==7020== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+2020-02-08T09:36:53.3981036Z ==7020==
+2020-02-08T09:36:53.3981147Z ==7020== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+2020-02-08T09:36:53.3981271Z ==7020== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+2020-02-08T09:36:54.5888174Z Exit code: 1
