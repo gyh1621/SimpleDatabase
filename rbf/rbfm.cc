@@ -353,7 +353,6 @@ void RBFM_ScanIterator::setUp(FileHandle &fileHandle, const std::vector<Attribut
 }
 
 int RBFM_ScanIterator::compare(const void *recordAttrData, const FieldOffset &recordAttrLength) {
-    if (recordAttrData == nullptr) return -1;  // TODO: what if conditionValue is also null
     if (conditionAttr.type == TypeInt) {
         int conditionValue, recordValue;
         memcpy(&conditionValue, value, conditionAttr.length);
@@ -404,13 +403,15 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
             Record r(recordData);
             recordAttrData = r.getFieldValue(conditionAttrFieldIndex, recordAttrLength);
 
-            int compareResult = compare(recordAttrData, recordAttrLength);
-            if (compareResult == 0) {
-                if (compOp == EQ_OP || compOp == LE_OP || compOp == GE_OP) break;
-            } else if (compareResult > 0) {  // record attr value > condition value
-                if (compOp == GT_OP || compOp == GE_OP || compOp == NE_OP) break;
-            } else if (compareResult < 0) {  // record attr value < condition value
-                if (compOp == LT_OP || compOp == LE_OP || compOp == NE_OP) break;
+            if (recordAttrData != nullptr) {  // not a null field
+                int compareResult = compare(recordAttrData, recordAttrLength);
+                if (compareResult == 0) {
+                    if (compOp == EQ_OP || compOp == LE_OP || compOp == GE_OP) break;
+                } else if (compareResult > 0) {  // record attr value > condition value
+                    if (compOp == GT_OP || compOp == GE_OP || compOp == NE_OP) break;
+                } else if (compareResult < 0) {  // record attr value < condition value
+                    if (compOp == LT_OP || compOp == LE_OP || compOp == NE_OP) break;
+                }
             }
 
             // compare failed

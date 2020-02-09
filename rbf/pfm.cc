@@ -895,7 +895,7 @@ int Record::readAttr(const std::vector<Attribute> &recordDescriptor, const std::
 
     // null field
     if(fieldEndOffset == 0) {
-        nullPointer[0] != ((char) 1) << 7;
+        nullPointer[0] = ((char) 1) << 7;
         return 0;
     }
 
