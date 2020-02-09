@@ -3,7 +3,6 @@
 RC TEST_RM_13(const std::string &tableName) {
     // Functions Tested:
     // 1. Conditional scan
-
     std::cout << std::endl << "***** In RM Test Case 13 *****" << std::endl;
 
     RID rid;
@@ -75,6 +74,5 @@ RC TEST_RM_13(const std::string &tableName) {
 int main() {
     // Scan with conditions
     createTable("tbl_b_employee4");
-    rm.printSysTable(SYSTABLE);
     return TEST_RM_13("tbl_b_employee4");
 }

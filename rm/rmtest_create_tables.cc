@@ -11,7 +11,6 @@ int main() {
     RC rc = rm.deleteCatalog();
 
     rc = rm.createCatalog();
-    rm.printSysTable(SYSTABLE);
     assert (rc == success && "Creating the Catalog should not fail.");
 
     // Delete the actual file and create Table tbl_employee
@@ -37,7 +36,6 @@ int main() {
 
     rc = createLargeTable("tbl_employee4");
     assert (rc == success && "Creating a table should not fail.");
-    rm.printSysTable(SYSTABLE);
 
     return success;
 }

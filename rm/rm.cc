@@ -381,7 +381,7 @@ void RelationManager::addColumnsInfo(const std::string &tableName, TableID id, c
     void* data;
     int dataOffset;
     for(int i = 0; i < descriptor.size(); i++){
-        data = malloc(200);
+        data = malloc(TUPLE_TMP_SIZE);
         auto* nullPointer = (unsigned char*)data;
         for(int j = 0; j < nullPointerSize; j++) nullPointer[j] = 0;
         dataOffset = nullPointerSize;
