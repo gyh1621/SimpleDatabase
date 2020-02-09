@@ -62,9 +62,6 @@ private:
     // delete meta info of a deleted table, always assume table exists
     // Return: same as scan
     RC deleteMetaInfo(const std::string &tableName);
-    // get table id and fileHandle of a given table;
-    // return: 0 - success, -2 - table not exist, others - scan fails
-    RC getTableInfo(const std::string &tableName, TableID &id, std::string &fileName);
     // convert a descriptor to a string vector;
     void getDescriptorString(const std::vector<Attribute> &descriptor, std::vector<std::string> &attrNames);
     // judge if a table is a system table
@@ -81,6 +78,10 @@ public:
     RC createTable(const std::string &tableName, const std::vector<Attribute> &attrs);
     // return: 0 - succsess, -2 - table not exists, -1 - sys tables, others - fail, same as RecordBasedFileManager::destroyFile();
     RC deleteTable(const std::string &tableName);
+
+    // get table id and fileHandle of a given table;
+    // return: 0 - success, -2 - table not exist, others - scan fails
+    RC getTableInfo(const std::string &tableName, TableID &id, std::string &fileName);
 
     /* Return:
      *  0 - success

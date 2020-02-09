@@ -309,43 +309,38 @@ TableID RelationManager::getTableNumbers() {
         return count;
     }
     assert(rc == 0 && "Open file failed");
-    PageNum pageNum = fileHandle.dataPageNum;
-    void* page = malloc(PAGE_SIZE);
-    if (page == nullptr) throw std::bad_alloc();
-    for(int i = 0; i < pageNum; i++){
-        fileHandle.readPage(i, page);
-        DataPage p(page);
-//        count += p.getRecordNumber();
-        count += p.getSlotNumber();
-    }
-    RecordBasedFileManager::instance().closeFile(fileHandle);
-//    RM_ScanIterator rmsi;
-//    RID rid;
-//    void* data = malloc(TUPLE_TMP_SIZE);
-//    if(data == nullptr) throw std::bad_alloc();
-//    std::vector<Attribute> descriptor;
-//    getSysTableAttributes(descriptor);
-//    std::vector<std::string> attrNames;
-//    getDescriptorString(descriptor, attrNames);
-//    rc = scan(SYSTABLE, "", NO_OP, NULL, attrNames, rmsi);
-//    if (rc != 0) {
-//        rmsi.close();
-//        return rc;
-//    }
+    //PageNum pageNum = fileHandle.dataPageNum;
+    //void* page = malloc(PAGE_SIZE);
+    //if (page == nullptr) throw std::bad_alloc();
+    //for(int i = 0; i < pageNum; i++){
+    //    fileHandle.readPage(i, page);
+    //    DataPage p(page);
+//  //      count += p.getRecordNumber();
+    //    count += p.getSlotNumber();
+    //}
+    //RecordBasedFileManager::instance().closeFile(fileHandle);
+    RM_ScanIterator rmsi;
+    RID rid;
+    void* data = malloc(TUPLE_TMP_SIZE);
+    if(data == nullptr) throw std::bad_alloc();
+    std::vector<Attribute> descriptor;
+    getSysTableAttributes(descriptor);
+    std::vector<std::string> attrNames;
+    getDescriptorString(descriptor, attrNames);
+    rc = scan(SYSTABLE, "", NO_OP, NULL, attrNames, rmsi);
+    assert(rc == 0);
 
-//    AttrLength attrLength;
-//    while(rmsi.getNextTuple(rid, data) != RM_EOF){
-//        Record record(descriptor, data);
-//        void *attrData = record.getFieldValue(0, attrLength);
-//        TableID newID = *((TableID *) attrData);
-//        if(newID > count){
-//            count = newID;
-//        }
-//        free(attrData);
-//    }
-        free(page);
-//    free(data);
-//    rmsi.close();
+    AttrLength attrLength;
+    while(rmsi.getNextTuple(rid, data) != RM_EOF){
+        Record record(descriptor, data);
+        void *attrData = record.getFieldValue(0, attrLength);
+        assert(attrData != nullptr);
+        TableID newID = *((TableID *) attrData);
+        count = std::max(newID, count);
+        free(attrData);
+    }
+    free(data);
+    rmsi.close();
     return count;
 }
 

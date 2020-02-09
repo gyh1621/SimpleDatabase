@@ -22,6 +22,14 @@ void printSlots(std::string fileName) {
     free(pageData);
 }
 
+TableID getTableID(std::string tableName) {
+    TableID tableId;
+    std::string fileName;
+    RC rc = rm.getTableInfo(tableName, tableId, fileName);
+    assert(rc == 0);
+    return tableId;
+}
+
 
 RC TEST_RM_CUSTOM_01()
 {
@@ -37,14 +45,18 @@ RC TEST_RM_CUSTOM_01()
     RC rc = rm.createCatalog();
     assert(rc == success && "create catalog failed");
 
-    int tableNumber = 5;
+    int tableNumber = 100;
+    TableID nextTableID = 3;
 
     std::string tableName = "test_table";
     for (int i = 0; i < tableNumber; i++) {
         std::string curTableName = tableName + std::to_string(i);
         createTable(curTableName);
-        std::cout << "==== created " << curTableName << "=====" << std::endl;
-        rm.printSysTable(SYSTABLE);
+        TableID tableId = getTableID(curTableName);
+        assert(tableId == nextTableID);
+        nextTableID++;
+        //std::cout << "==== created " << curTableName << "=====" << std::endl;
+        //rm.printSysTable(SYSTABLE);
     }
 
     int deleteNumber = tableNumber / 2;
@@ -52,23 +64,28 @@ RC TEST_RM_CUSTOM_01()
         std::string curTableName = tableName + std::to_string(i);
         rc = rm.deleteTable(curTableName);
         assert(rc == 0 && "delete table failed");
-        std::cout << "==== deleted " << curTableName << "=====" << std::endl;
-        rm.printSysTable(SYSTABLE);
+        //std::cout << "==== deleted " << curTableName << "=====" << std::endl;
+        //rm.printSysTable(SYSTABLE);
     }
 
-    int appendNumber = tableNumber;
+    int appendNumber = tableNumber / 4;
     for (int i = tableNumber; i < tableNumber + appendNumber; i++) {
         std::string curTableName = tableName + std::to_string(i);
         createTable(curTableName);
-        std::cout << "==== created " << curTableName << "=====" << std::endl;
-        rm.printSysTable(SYSTABLE);
-        printSlots(SYSTABLE);
+        TableID tableId = getTableID(curTableName);
+        assert(tableId == nextTableID);
+        nextTableID++;
+        //std::cout << "==== created " << curTableName << "=====" << std::endl;
+        //rm.printSysTable(SYSTABLE);
+        //printSlots(SYSTABLE);
         if (i > tableNumber) {
             std::vector<Attribute> attrs;
             rc = rm.getAttributes(tableName + std::to_string(i-1), attrs);
             assert(rc == 0 && "read table failed");
         }
     }
+
+    std::cout << "next table id: " << nextTableID << std::endl;
 
     std::cout << "***** Custom Test Case 01 Finished. *****" <<std::endl;
     return 0;
