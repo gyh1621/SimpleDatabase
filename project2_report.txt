@@ -1,41 +1,140 @@
 1. Basic information
-Team #:
-Github Repo Link:
-Student 1 UCI NetID:
-Student 1 Name:
-Student 2 UCI NetID (if applicable):
-Student 2 Name (if applicable):
+Team #: 14
+Github Repo Link: https://github.com/UCI-Chenli-teaching/cs222p-winter20-team-14
+Student 1 UCI NetID: yuhangg4
+Student 1 Name: Yuhang Guo
+Student 2 UCI NetID: lijies2
+Student 2 Name: Lijie Song
 
 
 2. Meta-data
 - Show your meta-data design (Tables and Columns table) and information about each column.
-
+    Tables table is designed as below:
+      ┌────────────────┬──────────────────────┬─────────────────────────┐
+      │  table-id      │     table-name       │        file-name        │
+      ├────────────────┼──────────────────────┼─────────────────────────┤
+      │     int        │     varchar(50)      │        varchar(50)      │
+      └────────────────┴──────────────────────┴─────────────────────────┘
+    Columns table is designed as below:
+      ┌────────────┬───────────────┬─────────────┬────────────────┬─────────────────┐
+      │  table-id  │  column-name  │ column-type │ column-length  │ column-position │
+      ├────────────┼───────────────┼─────────────┼────────────────┼─────────────────┤
+      │    int     │  varchar(50)  │     int     │      int       │       int       │
+      └────────────┴───────────────┴─────────────┴────────────────┴─────────────────┘
 
 3. Internal Record Format
 - Show your record format design and describe how your design satisfies O(1) field access. If not, just mention that your team hasn't implemented this feature.
 
+      Our record format is shown below:
+      ┌────────────────┬──────────────────────┬─────────────────────────┐
+      │  RecordHeader  │     OffsetSection    │        FieldData        │
+      ├────────────────┼──────────────────────┼─────────────────────────┤
+      │  Field Number  │  offset, ..., offset │ Field 1 | ... | Field N │
+      │ unsigned short │    unsigned short    │ ......................  │
+      └────────────────┴──────────────────────┴─────────────────────────┘
+      1. RecordHeader shows the number of fields this record contains.
+      2. OffsetSection shows the offset of each filed which is from start of the record to end of the FieldData.
+         Null fields occupy an offsetSection whose value is 0.
+      3. FieldData shows the actual data of each field. Null fields occupy no FieldData section.
+      4. O(1) field access: for a certain field, we can get its start offset (it's previous field's end offset) and its
+         end offset in the OffsetSection. With these, we can get the actual field data directly.
+
 - Describe how you store a VarChar field.
 
+      1. In General, the offset in the OffsetSection of a VarChar points to the end of the corresponding FieldData section.
+         Length of the field can be calculated by offset of this field and the previous field.
+      2. If the VarChar field is Null, the OffsetSection will be 0 and it will not occupy FieldData section.
+      3. If the Varchar is empty, the OffsetSection points to the end of last no Null field, indicating that its
+         length is 0.
 
 4. Page Format
 - Show your page format design.
-
+     Our page format is shown below:
+     ┌───────────────────────────────────────────────────────────────────────────────────────────┐
+     │ DATA SECTION: <Record>, <Record>, ....                                                    │
+     │                                                                                           │
+     │   ┌──────────────────────────────────┬────────────────┬─────────────────┬─────────────────┤
+     │   │          SLOT DIRECTORY          │ RECORD NUMBER  │   SLOT NUMBER   │      Inited     │
+     │   ├──────────────────────────────────┼────────────────┼─────────────────┼─────────────────┤
+     │   │     <isPointer, offset, len>     │ record  number │   slot number   │  init indicator │
+     │   │ <bool, unsigned, unsigned short> │ unsigned short │  unsigned short │       char      │
+     └───┴──────────────────────────────────┴────────────────┴─────────────────┴─────────────────┘
+     1. Record data is stored from start of page to end of page. Record is stored one by one. There is no hole
+        between records.
+     2. Record catalogue is stored from end of page to start of page (slots expand from end to start).
+        1) Inited is an Init indicator showing whether the page is initiated.
+        2) Slot Number shows the number of slot of the page.
+        3) Record Number shows the actual number of records in the page.
+        4) Slot Directory stores all slot information. Each slot has three value: isPointer, offset/pageId, len/slotId.
+           isPointer shows whether the slot points to a record in this page or points to another slot in another page.
+           When isPointer is true, it points to another slot. The following two values are pageId and slotId of that
+           slot.
+           When isPointer is false, it points to a record in this page. The following two values are offset and length
 
 5. File Format
 - Show your file format design
 
+    In a file, We have three types of pages:
+    - hidden page: record file information like read / write / append counters and page numbers
+    - free space page: record free space left on data pages
+    - data page: store records
+
+     Hidden page format:
+     ┌───────┬──────────────────┬───────────────────┬────────────────────┬───────────────┬────────────┐
+     │ bool  │ unsigned         │ unsigned          │ unsigned           │ unsigned      │  unsigned  │
+     ├───────┼──────────────────┼───────────────────┼────────────────────┼───────────────┼────────────┤
+     │IsInit │ readPageCounter  │ writePageCounter  │ appendPageCounter  │ dataPageNumber│ pageNumber │
+     └───────┴──────────────────┴───────────────────┴────────────────────┴───────────────┴────────────┘
+     IsInit shows whether this page is initiated.
+     Then it comes three counters.
+     PageNumber shows the number of all pages in the file, including hidden page.
+     DataPageNumber shows actual number of pages that stores record data.
+
+     Except a hidden page, we have a free space page for every 2048 actual data pages. Every 2 bytes in a free space page
+     records the free space left for the corresponding actual data page.
+
+     The format of a file looks like below:
+
+                                                       2048 data pages                         2048 data pages
+     ┌─────────────────────────────────────┬───────────────────────────────────┬──────┬──────────────────────────────┐
+     | actual page number:      0       1  |   2                        2049   | 2050 |   2051                4098   |
+     ├─────────────────────────────────────┼───────────────────────────────────┼──────┼──────────────────────────────┤
+     | pages:              HiddenPage, FSP | DataPage, ..., ..., ..., DataPage | FSP  | DataPage, ..., ..., DataPage |
+     ├─────────────────────────────────────┼───────────────────────────────────┼──────┼──────────────────────────────┤
+     | data page number:                   |   0                        2047   |      |   2048                4095   |
+     └─────────────────────────────────────┴───────────────────────────────────┴──────┴──────────────────────────────┘
 
 6. Describe the following operation logic.
 - Update a record
+    There are three cases when deleting a record:
+        1) record to update becomes smaller:
+            In this case, there is definitely enough space in the current page. So update the actual data, slot info,
+            and free space info, then move records after the updated one to the left.
+        2) record to update becomes bigger but current page has enough space:
+            In this case, move records after the updated one to the right. Then, update the actual data, slot info and free
+            space info.
+        3) not enough space to update:
+            In this case, first delete record data in current page, then find an available page and insert the updated
+            record, then let the origin record points to the inserted record.
 
 - Delete a record
+    1) find where the actual record is through pointers if needed. In this process, delete those pointers.
+    2) delete the actual record, move records after it to the left, update slot info and free space info.
 
 - Scan
-
+    For a certain table file:
+	    1) In each page, check each record one by one. If it satisfy the condition, return the data. If it is a pointer
+	    or it does not meet the condition, skip.
+	    2) When all records in a page have been checked, go to next page.
+	    3) When all pages have been checked, end the scan.
 
 7. Implementation Detail
 - Other implementation details goes here.
-
+    Avoid user operation on system tables:
+        To avoid users having a chance to modify system tables(Tables and Columns), we define private methods for APIs
+        that may modify system tables. Those private methods have an extra boolean value, which indicates whether the
+        the caller is a user method or system method. If the boolean value is false and the target table is a system
+        table, which means a user try to modify a system table, method will fail.
 
 8. Other (optional)
 - Freely use this section to tell us about things that are related to the project 2, but not related to the other sections (optional)           
