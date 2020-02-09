@@ -7,17 +7,23 @@ import argparse
 import subprocess
 
 
-executable_dir = "cmake-build-debug"
-if not os.path.exists(executable_dir):
-    print(executable_dir, "not found")
-    sys.exit(1)
-os.chdir(executable_dir)
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument(
     "-p", "--prefix", action="store", help="run tests with specific prefix"
 )
+arg_parser.add_argument(
+    "-d", "--directory", action="store", help="executable directories, eg. -d rbf,rm"
+)
 args = arg_parser.parse_args()
+if args.directory:
+    executable_dir = args.directory.split(',')
+else:
+    executable_dir = ["cmake-build-debug"]
+for dir in executable_dir:
+    if not os.path.exists(dir):
+        print(executable_dir, "not found")
+        sys.exit(1)
 
 test_orders = [
     "rbftest\_\d+",
@@ -49,11 +55,13 @@ def print_test(test, output, err, code):
 
 
 unordered_tests, fail_tests, success_tests = [], [], []
-for f in os.listdir():
-    if os.path.isfile(f) and re.match(".*?test[^\.]*?", f) and os.access(f, os.X_OK):
-        if args.prefix and not os.path.basename(f).startswith(args.prefix):
-            continue
-        unordered_tests.append(os.path.abspath(f))
+for dir in executable_dir:
+    for f in os.listdir(dir):
+        f = os.path.join(dir, f)
+        if os.path.isfile(f) and re.match(".*?test[^\.]*?", f) and os.access(f, os.X_OK):
+            if args.prefix and not os.path.basename(f).startswith(args.prefix):
+                continue
+            unordered_tests.append(os.path.abspath(f))
 unordered_tests.sort()
 tests = []
 for order in test_orders:

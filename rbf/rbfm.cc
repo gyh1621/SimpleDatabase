@@ -66,6 +66,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vecto
     PageNum pageNum;
     int slotID;
     void *pageData = malloc(PAGE_SIZE);
+    memset(pageData, 0, PAGE_SIZE);
     auto neededSize = record.getSize() + DataPage::SlotSize;
     RC rc = getFirstPageAvailable(fileHandle, neededSize, pageNum);
 
