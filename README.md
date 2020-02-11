@@ -1,3 +1,6 @@
+[![codecov](https://codecov.io/gh/UCI-Chenli-teaching/cs222p-winter20-team-14/branch/master/graph/badge.svg?token=PwCwV5ftgO)](https://codecov.io/gh/UCI-Chenli-teaching/cs222p-winter20-team-14)
+
+
 By default you should not change those functions of pre-defined in the given .h files.
 If you think some changes are really necessary, please contact us first.
 
