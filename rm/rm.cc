@@ -66,8 +66,9 @@ RC RelationManager::deleteTable(const std::string &tableName) {
     if(rc != 0) return rc;
     if(!isSysTable(tableName)){
         rc = RecordBasedFileManager::instance().destroyFile(fileName);
-        if(rc != 0) return rc;
-        deleteMetaInfo(tableName);
+        assert(rc == 0);
+        rc = deleteMetaInfo(tableName);
+        assert(rc == 0);
     }else{
         return -1;
     }
@@ -95,10 +96,7 @@ RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attr
 
     RM_ScanIterator rmsi;
     rc = scan(SYSCOLTABLE, "table-id", EQ_OP, &tableID, attrNames, rmsi);
-    if (rc != 0) {
-        rmsi.close();
-        return rc;
-    }
+    assert(rc == 0);
 
     void *data = malloc(TUPLE_TMP_SIZE);
     RID rid;
@@ -203,7 +201,7 @@ RC RelationManager::scan(const std::string &tableName,
     std::string tableFileName;
     TableID tableID;
     RC rc = getTableInfo(tableName, tableID, tableFileName);
-    if (rc != 0) return rc;
+    assert(rc == 0);
     std::vector<Attribute> descriptor;
     getAttributes(tableName, descriptor);
     rm_ScanIterator.setUp(tableFileName, conditionAttribute, compOp, value, attributeNames, descriptor);
@@ -369,7 +367,8 @@ void RelationManager::addTablesInfo(const std::string &tableName, TableID id) {
     memcpy((char *) data + dataOffset, tableName.c_str(), length);
 
     RID rid;
-    insertTuple(SYSTABLE, data, rid, true);
+    RC rc = insertTuple(SYSTABLE, data, rid, true);
+    assert(rc == 0);
     free(data);
 }
 
@@ -404,7 +403,8 @@ void RelationManager::addColumnsInfo(const std::string &tableName, TableID id, c
         int position = i + 1;
         memcpy((char *)data + dataOffset, &position, sizeof(int));
         RID rid;
-        insertTuple(SYSCOLTABLE, data, rid, true);
+        RC rc = insertTuple(SYSCOLTABLE, data, rid, true);
+        assert(rc == 0);
         free(data);
     }
 }
@@ -412,7 +412,10 @@ void RelationManager::addColumnsInfo(const std::string &tableName, TableID id, c
 RC RelationManager::deleteMetaInfo(const std::string &tableName) {
     TableID id;
     std::string fileName;
-    getTableInfo(tableName, id, fileName);
+    RC rc = getTableInfo(tableName, id, fileName);
+    if (rc != 0) {
+        return rc;
+    }
 
     RM_ScanIterator rmsi;
     RID rid;
@@ -427,12 +430,7 @@ RC RelationManager::deleteMetaInfo(const std::string &tableName) {
     RC rc;
     void *tableNameData = createVarcharData(tableName);
     rc = scan(SYSTABLE, "table-name", EQ_OP, tableNameData, attrNames, rmsi);
-    if(rc != 0) {
-        free(tableNameData);
-        free(data);
-        rmsi.close();
-        return rc;
-    }
+    assert(rc == 0);
     if(rmsi.getNextTuple(rid, data) != RM_EOF){
         RC res = deleteTuple(SYSTABLE, rid, true);
         assert(res == 0 && "delete tuple failed");
@@ -445,11 +443,7 @@ RC RelationManager::deleteMetaInfo(const std::string &tableName) {
     getSysColTableAttributes(descriptor);
     getDescriptorString(descriptor, attrNames);
     rc = scan(SYSCOLTABLE, "table-id", EQ_OP, &id, attrNames, rmsi);
-    if(rc != 0) {
-        free(data);
-        rmsi.close();
-        return rc;
-    }
+    assert(rc == 0);
     while(rmsi.getNextTuple(rid, data) != RM_EOF){
         RC res = deleteTuple(SYSCOLTABLE, rid, true);
         assert(res == 0 && "delete tuple failed");
@@ -488,12 +482,7 @@ RC RelationManager::getTableInfo(const std::string &tableName, TableID &id, std:
     RC rc;
     void *tableNameData = createVarcharData(tableName);
     rc = scan(SYSTABLE, "table-name", EQ_OP, tableNameData, attrNames, rmsi);
-    if(rc != 0) {
-        free(tableNameData);
-        free(data);
-        rmsi.close();
-        return rc;
-    }
+    assert(rc == 0);
     if(rmsi.getNextTuple(rid, data) != RM_EOF){
         // 1 bit nullIndicator
         int offset = 1;

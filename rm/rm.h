@@ -44,7 +44,7 @@ private:
     TableID tableNumber;
     // insert and delete record, prevent user operation on system tables
     // sys = true, it is a system operation, otherwise not.
-    // return: 0 - success, -2 - table not exist, -1 - external sys operation, others - fail file operations
+    // return: 0 - success, -2 - table not exist, -1 - external sys operation
     RC insertTuple(const std::string &tableName, const void *data, RID &rid, bool sys);
     RC deleteTuple(const std::string &tableName, const RID &rid, bool sys);
     // get "Tables" descriptor
@@ -60,7 +60,7 @@ private:
     // insert meta info of new table to Columns;
     void addColumnsInfo(const std::string &table, TableID id, const std::vector<Attribute> &descriptor);
     // delete meta info of a deleted table, always assume table exists
-    // Return: same as scan
+    // Return: same as getTableInfo
     RC deleteMetaInfo(const std::string &tableName);
     // convert a descriptor to a string vector;
     void getDescriptorString(const std::vector<Attribute> &descriptor, std::vector<std::string> &attrNames);
@@ -80,7 +80,7 @@ public:
     RC deleteTable(const std::string &tableName);
 
     // get table id and fileHandle of a given table;
-    // return: 0 - success, -2 - table not exist, others - scan fails
+    // return: 0 - success, -2 - table not exist
     RC getTableInfo(const std::string &tableName, TableID &id, std::string &fileName);
 
     /* Return:
@@ -110,7 +110,6 @@ public:
     // Do not store entire results in the scan iterator.
     // Return:
     //   0: success
-    //  -2: table not exists, same as getTableInfo return code
     RC scan(const std::string &tableName,
             const std::string &conditionAttribute,
             const CompOp compOp,                  // comparison type such as "<" and "="
