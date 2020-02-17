@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstring>
 #include <climits>
+#include <algorithm>
 
 #include "pfm.h"
 #include "rbfm.h"
@@ -256,4 +257,54 @@ void createLargeRecordDescriptor2(std::vector<Attribute> &recordDescriptor) {
 
     }
     free(suffix);
+}
+
+
+void checkFreeSpaceMatch(FileHandle &fileHandle) {
+    void *pageData = malloc(PAGE_SIZE);
+    for (PageNum i = 0; i < fileHandle.getNumberOfPages(); i++) {
+        fileHandle.readPage(i, pageData);
+        DataPage page(pageData);
+        PageFreeSpace space1 = page.getFreeSpace(), space2 = fileHandle.getFreeSpaceOfPage(i);
+        if (i % 200 == 0) std::cout << "Data page " << i << " fs computed: " << space1 << " fs recorded: " << space2 << std::endl;
+        assert(page.getFreeSpace() == fileHandle.getFreeSpaceOfPage(i) && "free space should match");
+    }
+    std::cout << "All free spaces matches." << std::endl << std::endl;
+    free(pageData);
+}
+
+void checkRecordOffsets(FileHandle &fileHandle) {
+#define private public
+    void *pageData = malloc(PAGE_SIZE);
+    bool isPointer = true;
+    unsigned recordOffset;
+    unsigned short recordLen;
+    for (PageNum i = 0; i < fileHandle.getNumberOfPages(); i++) {
+        fileHandle.readPage(i, pageData);
+        DataPage page(pageData);
+        std::vector<std::pair<RecordOffset, RecordLength>> offsets;
+        for (unsigned slot = 0; slot < page.getSlotNumber(); slot++) {
+            page.parseSlot(slot, isPointer, recordOffset, recordLen);
+            if (isPointer || recordOffset == DataPage::DeletedRecordOffset) {
+                continue;
+            } else {
+                offsets.emplace_back(recordOffset, recordLen);
+            }
+        }
+
+        std::sort(offsets.begin(), offsets.end());
+        RecordOffset lastRecordEnd = 0;
+        for (const auto &pair: offsets) {
+            RecordOffset offset = pair.first;
+            RecordLength length = pair.second;
+            if (lastRecordEnd != offset) {
+                std::cout << "record offset mismatches in page: " << i << std::endl;
+                std::cout << "last record end: " << lastRecordEnd << " current record start: " << recordOffset << std::endl;
+            }
+            assert(offset == lastRecordEnd && "record offset should match");
+            lastRecordEnd += length;
+        }
+    }
+    std::cout << "No empty spaces between records" << std::endl << std::endl;
+    free(pageData);
 }

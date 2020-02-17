@@ -378,7 +378,9 @@ DataPage::DataPage(void *data) {
         }
         slot--;
     }
-    freeSpace = getNthSlotOffset(slotNumber - 1) - freeSpaceOffset;
+    RecordOffset lastSlotOffset = getNthSlotOffset(slotNumber - 1);
+    assert(lastSlotOffset >= freeSpaceOffset);
+    freeSpace = lastSlotOffset - freeSpaceOffset;
 }
 
 int DataPage::getNthSlotOffset(SlotNumber n) {

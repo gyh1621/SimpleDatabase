@@ -427,7 +427,6 @@ RC RelationManager::deleteMetaInfo(const std::string &tableName) {
     getSysTableAttributes(descriptor);
     std::vector<std::string> attrNames;
     getDescriptorString(descriptor, attrNames);
-    RC rc;
     void *tableNameData = createVarcharData(tableName);
     rc = scan(SYSTABLE, "table-name", EQ_OP, tableNameData, attrNames, rmsi);
     assert(rc == 0);

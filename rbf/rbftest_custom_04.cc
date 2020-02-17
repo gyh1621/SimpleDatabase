@@ -1,5 +1,6 @@
 #define private public
 
+#include <random>
 #include "rbfm.h"
 #include "test_util.h"
 
@@ -41,69 +42,89 @@ int RBFTest_Custom_4(RecordBasedFileManager &rbfm) {
     memset(largeNullsIndicator, 0, nullFieldsIndicatorActualSize);
 
     // Insert 30000 records into file
+    std::vector<RID> rids;
+    int size;
     for (int i = 0; i < numRecords; i++) {
         // Test insert Record
         memset(record, 0, 1000);
-        int size = 0;
-        if (i % 2 == 0) {
-            prepareLargeRecord2(largeRecordDescriptor.size(), largeNullsIndicator, i, record, &size);
-            rc = rbfm.insertRecord(fileHandle, largeRecordDescriptor, record, rid);
-        } else {
-            prepareRecord(recordDescriptor.size(), nullsIndicator, 8, "ressssss", 10, 10, 10, record, &size);
-            rc = rbfm.insertRecord(fileHandle, recordDescriptor, record, rid);
-        }
+        prepareLargeRecord2(largeRecordDescriptor.size(), largeNullsIndicator, i, record, &size);
+        rc = rbfm.insertRecord(fileHandle, largeRecordDescriptor, record, rid);
+        rids.push_back(rid);
         assert(rc == success && "Inserting a record should not fail.");
     }
 
     rbfm.closeFile(fileHandle);
     rc = rbfm.openFile(fileName, fileHandle);
     assert(rc == success && "Opening the file should not fail.");
-
     // check free space matches
-    void *pageData = malloc(PAGE_SIZE);
-    for (PageNum i = 0; i < fileHandle.getNumberOfPages(); i++) {
-        fileHandle.readPage(i, pageData);
-        DataPage page(pageData);
-        PageFreeSpace space1 = page.getFreeSpace(), space2 = fileHandle.getFreeSpaceOfPage(i);
-        if (i % 200 == 0) std::cout << "Data page " << i << " fs computed: " << space1 << " fs recorded: " << space2 << std::endl;
-        assert(page.getFreeSpace() == fileHandle.getFreeSpaceOfPage(i) && "free space should match");
-    }
-    std::cout << "All free spaces matches." << std::endl << std::endl;
-
+    checkFreeSpaceMatch(fileHandle);
     // check whether exists empty space
-    bool isPointer = true;
-    unsigned recordOffset;
-    unsigned short recordLen;
-    unsigned lastRecordEnd = 0;
-    for (PageNum i = 0; i < fileHandle.getNumberOfPages(); i++) {
-        fileHandle.readPage(i, pageData);
-        DataPage page(pageData);
-        lastRecordEnd = 0;
-        for (unsigned slot = 0; slot < page.slotNumber; slot++) {
-            while (slot < page.slotNumber) {
-                // read until next non-pointer slot
-                page.parseSlot(slot, isPointer, recordOffset, recordLen);
-                if (isPointer) slot++;
-                else break;
-            }
-            if (!isPointer) {
-                assert(lastRecordEnd == recordOffset && "record offset should match");
-                lastRecordEnd = recordOffset + recordLen;
-            } else {
-                // slot == page.slotNumber
-                break;
-            }
+    checkRecordOffsets(fileHandle);
+
+    // update or delete 20000 records
+    std::cout << "Update or Delete Records" << std::endl;
+    std::random_device dev;
+    std::mt19937 engine(dev());
+    for (int i = 0; i < 20000; i++) {
+        int index1 = engine() % rids.size();
+        int index2 = engine() % rids.size();
+        if (i % 2 == 0) {
+            prepareLargeRecord2(largeRecordDescriptor.size(), largeNullsIndicator, index1, record, &size);
+            rc = rbfm.updateRecord(fileHandle, largeRecordDescriptor, record, rids[index2]);
+            assert(rc == success && "Update a record should not fail.");
+        } else {
+            rc = rbfm.deleteRecord(fileHandle, largeRecordDescriptor, rids[index2]);
+            assert(rc == success && "Delete a record should not fail.");
+            rids.erase(rids.begin() + index2);
         }
+
+
     }
-    std::cout << "No empty spaces between records" << std::endl << std::endl;
+
+    rbfm.closeFile(fileHandle);
+    rc = rbfm.openFile(fileName, fileHandle);
+    assert(rc == success && "Opening the file should not fail.");
+    // check free space matches
+    checkFreeSpaceMatch(fileHandle);
+    // check whether exists empty space
+    checkRecordOffsets(fileHandle);
+
+    // delete remain records
+    std::cout << "DELETING RECORDS" << std::endl;
+    while (rids.size() != 0) {
+        int index = engine() % rids.size();
+        rc = rbfm.deleteRecord(fileHandle, largeRecordDescriptor, rids[index]);
+        assert(rc == success && "Delete a record should not fail.");
+        rids.erase(rids.begin() + index);
+    }
+
+    rbfm.closeFile(fileHandle);
+    rc = rbfm.openFile(fileName, fileHandle);
+    assert(rc == success && "Opening the file should not fail.");
+    // check free space matches
+    checkFreeSpaceMatch(fileHandle);
+    // check whether exists empty space
+    checkRecordOffsets(fileHandle);
+
+    // check record number
+    void *pageData = malloc(PAGE_SIZE);
+    for (PageNum pageNum = 0; pageNum < fileHandle.getNumberOfPages(); pageNum++) {
+        fileHandle.readPage(pageNum, pageData);
+        DataPage page(pageData);
+        assert(page.getRecordNumber() == 0 && "Record number should be 0");
+    }
+
+    std::cout << "File has no records, page number is: " << fileHandle.getNumberOfPages() << std::endl;
 
     free(record);
+    free(pageData);
     free(nullsIndicator);
     free(largeNullsIndicator);
-    free(pageData);
     rbfm.closeFile(fileHandle);
 
     std::cout << "RBF Test Custom Case 04 Finished! The result will not be examined :)" << std::endl << std::endl;
+
+    remove(fileName.c_str());
 
     return 0;
 }
