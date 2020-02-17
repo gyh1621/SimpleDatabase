@@ -413,7 +413,8 @@ void DataPage::deleteSlot(int slot) {
     auto slotOffset = getNthSlotOffset(slot);
     *((SlotPointerIndicator *)((char *)page + slotOffset)) = false;
     slotOffset += sizeof(SlotPointerIndicator);
-    memcpy((char *) page + slotOffset, &DeletedRecordOffset, sizeof(RecordOffset));
+    RecordOffset deletedOffset = DeletedRecordOffset;
+    memcpy((char *) page + slotOffset, &deletedOffset, sizeof(RecordOffset));
 }
 
 void DataPage::updateSlotInfo(RecordOffset offset, RecordLength length, bool dir) {

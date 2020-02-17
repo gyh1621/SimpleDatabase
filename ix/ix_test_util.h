@@ -8,6 +8,8 @@ const int fail = -1;
 
 #include "../rbf/test_util.h"
 
+using namespace std;
+
 IndexManager &indexManager = IndexManager::instance();
 
 #endif

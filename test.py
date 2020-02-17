@@ -7,7 +7,6 @@ import argparse
 import subprocess
 
 
-
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument(
     "-p", "--prefix", action="store", help="run tests with specific prefix"
@@ -17,7 +16,7 @@ arg_parser.add_argument(
 )
 args = arg_parser.parse_args()
 if args.directory:
-    executable_dir = args.directory.split(',')
+    executable_dir = args.directory.split(",")
 else:
     executable_dir = ["cmake-build-debug"]
 for dir in executable_dir:
@@ -33,6 +32,10 @@ test_orders = [
     "rmtest_create_tables",
     "rmtest\_\d+",
     "rmtest\_custom\_\d+",
+    "ixtest\_\d+",
+    # "ixtest\_extra\_\d+",
+    "ixtest\_p\d+",
+    "ixtest\_pe\_\d+",
 ]
 
 cmd = "{test_path}"
@@ -58,8 +61,14 @@ unordered_tests, fail_tests, success_tests = [], [], []
 for dir in executable_dir:
     for f in os.listdir(dir):
         f = os.path.join(dir, f)
-        if os.path.isfile(f) and re.match(".*?test[^\.]*?", f) and os.access(f, os.X_OK):
-            if args.prefix and not os.path.basename(f).startswith(args.prefix):
+        name, type = os.path.splitext(os.path.basename(f))
+        if (
+            os.path.isfile(f)
+            and re.match(".*?test[^\.]*?", f)
+            and os.access(f, os.X_OK)
+            and not type
+        ):
+            if args.prefix and not name.startswith(args.prefix):
                 continue
             unordered_tests.append(os.path.abspath(f))
 unordered_tests.sort()
