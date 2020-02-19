@@ -3,7 +3,7 @@
 #include "ix.h"
 #include "ix_test_util.h"
 
-RC closeWithFail(const string &indexFileName1, const string &indexFileName2, IXFileHandle &ixFileHandle1,
+RC closeWithFail(const std::string &indexFileName1, const std::string &indexFileName2, IXFileHandle &ixFileHandle1,
                  IXFileHandle &ixFileHandle2, IX_ScanIterator &ix_ScanIterator1, IX_ScanIterator &ix_ScanIterator2) {
     ix_ScanIterator1.close();
     ix_ScanIterator2.close();
@@ -126,7 +126,7 @@ int testCase_p2(const std::string &indexFileName1, const std::string &indexFileN
     for (int i = 0; i < numOfTuples; i++) {
         B[i] = 20000 + i;
     }
-    std::random_shuffle(B, B + numOfTuples);
+    std::shuffle(B, B + numOfTuples, std::mt19937(std::random_device()()));
 
     for (int i = 0; i < numOfTuples; i++) {
         key = B[i];
