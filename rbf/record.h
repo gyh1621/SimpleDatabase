@@ -3,32 +3,10 @@
 #include <vector>
 #include <cassert>
 #include <iostream>
+#include "../types.h"
 
 #ifndef CS222_FALL19_RECORD_H
 #define CS222_FALL19_RECORD_H
-
-// Record ID
-typedef struct {
-    unsigned pageNum;    // page number
-    unsigned short slotNum;    // slot number in the page
-} RID;
-
-// Attribute
-typedef enum {
-    TypeInt = 0, TypeReal, TypeVarChar, TypeNull
-} AttrType;
-
-typedef unsigned AttrLength;
-
-struct Attribute {
-    std::string name;  // attribute name
-    AttrType type;     // attribute type
-    AttrLength length; // attribute length
-};
-
-typedef unsigned short FieldNumber;   // type depends on PAGE_SIZE
-typedef unsigned short FieldOffset;   // type depends on PAGE_SIZE
-typedef unsigned short RecordVersion;
 
 
 class Record {
@@ -65,7 +43,7 @@ public:
     static std::string getString(const void *data, AttrLength attrLength);
 
 private:
-    int size;
+    RecordSize size;
     void *record;
     // offset to the start of offset section
     RecordVersion recordVersion;
@@ -81,7 +59,7 @@ public:
     // free malloc space if data is not passed in.
     ~Record();
 
-    int getSize();
+    RecordSize getSize();
     const void *getRecordData();
     // convert record from the implemented format to the given format
     void convertToRawData(const std::vector<Attribute> &recordDescriptor, void* data);

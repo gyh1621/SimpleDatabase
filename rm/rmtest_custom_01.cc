@@ -10,8 +10,8 @@ void printSlots(std::string fileName) {
         DataPage p(pageData);
         std::cout << "PAGE " << i << " of file " << fileName << std::endl;
         for (SlotNumber slot = 0; slot < p.getSlotNumber(); slot++) {
-            RecordOffset recordOffset;
-            RecordLength recordLength;
+            PageOffset recordOffset;
+            RecordSize recordLength;
             SlotPointerIndicator isPointer;
             p.parseSlot(slot, isPointer, recordOffset, recordLength);
             std::cout << "slot " << slot << ": " << isPointer << " "

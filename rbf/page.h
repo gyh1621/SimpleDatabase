@@ -1,20 +1,8 @@
+#include "../types.h"
 #include "record.h"
 
 #ifndef CS222_FALL19_PAGE_H
 #define CS222_FALL19_PAGE_H
-
-#define PAGE_SIZE 4096
-#define PAGES_IN_FSP (PAGE_SIZE / sizeof(PageFreeSpace))
-
-typedef unsigned PageNum;
-typedef unsigned short PageFreeSpace;   // depends on PAGE_SIZE
-
-typedef unsigned short SlotNumber;      // number of slots in a page, depends on PAGE_SIZE
-typedef unsigned short RecordNumber;    // depends on PAGE_SIZE
-typedef char InitIndicator;
-typedef bool SlotPointerIndicator;
-typedef unsigned RecordOffset;          // depends on PageNum
-typedef unsigned short RecordLength;    // depends on PAGE_SIZE
 
 
 class FreeSpacePage {
@@ -76,16 +64,16 @@ class DataPage {
 
 
 public:
-    static const unsigned SlotSize = sizeof(RecordOffset) + sizeof(RecordLength) + sizeof(SlotPointerIndicator);
+    static const unsigned SlotSize = sizeof(PageOffset) + sizeof(RecordSize) + sizeof(SlotPointerIndicator);
     static const unsigned InfoSize = sizeof(RecordNumber) + sizeof(SlotNumber) + sizeof(InitIndicator);
-    static const RecordOffset DeletedRecordOffset = PAGE_SIZE;
+    static const PageOffset DeletedRecordOffset = PAGE_SIZE;
 
 private:
     void *page;
     PageFreeSpace freeSpace;
     SlotNumber slotNumber;
     RecordNumber recordNumber;
-    RecordOffset freeSpaceOffset;    // start offset of free space
+    PageOffset freeSpaceOffset;    // start offset of free space
 
     /* Get nth slot offset from page start
      * n starts from 0 and from right to left
@@ -96,10 +84,10 @@ private:
     SlotNumber getFirstAvailableSlot();
 
     //after move, update slot info that has been moved. dir = true : forward, false: backward;
-    void updateSlotInfo(RecordOffset offset, RecordLength length, bool dir);
+    void updateSlotInfo(PageOffset offset, RecordSize length, bool dir);
 
     // move records included from startOffset to final record's end, not doing any check here
-    void moveRecords(RecordOffset startOffset, RecordOffset targetOffset);
+    void moveRecords(PageOffset startOffset, PageOffset targetOffset);
 
 public:
     // passed page data, will not be delete in destructor
@@ -113,11 +101,11 @@ public:
     /* Parse a slot
      * slot starts from 0 and from right to left
      * */
-    void parseSlot(int slot, SlotPointerIndicator &isPointer, RecordOffset &recordOffset, RecordLength &recordLen);
+    void parseSlot(SlotNumber slot, SlotPointerIndicator &isPointer, PageOffset &recordOffset, RecordSize &recordLen);
 
     // set target slot to indicate that record is deleted;
     // offset will be set to PAGE_SIZE
-    void deleteSlot(int slot);
+    void deleteSlot(SlotNumber slot);
 
     /* Insert a record into the page
      * Return: slot id
@@ -125,7 +113,7 @@ public:
     SlotNumber insertRecord(Record &record);
 
     /* get record length, always assume record exists in this page */
-    RecordLength getRecordSize(SlotNumber slot);
+    RecordSize getRecordSize(SlotNumber slot);
 
     /* get record formatted raw data */
     // if slot is not an actual record, return nullptr
@@ -142,7 +130,7 @@ public:
     void moveRecord(SlotNumber slot, const RID &newRID);
 
     // update target record;
-    void updateRecord(Record &updateRecord, RecordLength &slotid);
+    void updateRecord(Record &updateRecord, SlotNumber &slotid);
 
     /* Return: 0 - exists, -1 - pointer, 1 - deleted record */
     int checkRecordExist(SlotNumber &slotid, RID &newRID);

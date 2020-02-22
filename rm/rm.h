@@ -5,13 +5,9 @@
 #include <vector>
 
 #include "../rbf/rbfm.h"
+#include "../types.h"
 
 # define RM_EOF (-1)  // end of a scan operator
-# define SYSTABLE "Tables"
-# define SYSCOLTABLE "Columns"
-typedef unsigned TableID;
-
-# define TUPLE_TMP_SIZE PAGE_SIZE
 
 // RM_ScanIterator is an iterator to go through tuples
 class RM_ScanIterator {

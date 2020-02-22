@@ -3,13 +3,10 @@
 #include <cassert>
 #include "page.h"
 #include "record.h"
+#include "../types.h"
 
 #ifndef _pfm_h_
 #define _pfm_h_
-
-typedef int RC;
-
-typedef unsigned Counter;  // r/w/a counter
 
 #include <string>
 

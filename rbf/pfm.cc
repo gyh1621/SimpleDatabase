@@ -368,8 +368,8 @@ DataPage::DataPage(void *data) {
     auto slot = slotNumber - 1;
     freeSpaceOffset = 0;
     SlotPointerIndicator isPointer;
-    RecordOffset recordOffset;
-    RecordLength recordLength;
+    PageOffset recordOffset;
+    RecordSize recordLength;
     // freeSpaceOffset is the maximum record offset
     while (slot >= 0) {
         parseSlot(slot, isPointer, recordOffset, recordLength);
@@ -378,7 +378,7 @@ DataPage::DataPage(void *data) {
         }
         slot--;
     }
-    RecordOffset lastSlotOffset = getNthSlotOffset(slotNumber - 1);
+    PageOffset lastSlotOffset = getNthSlotOffset(slotNumber - 1);
     assert(lastSlotOffset >= freeSpaceOffset);
     freeSpace = lastSlotOffset - freeSpaceOffset;
 }
@@ -392,32 +392,32 @@ SlotNumber DataPage::getFirstAvailableSlot() {
     // try to find deleted slots
     for (SlotNumber slot = 0; slot < slotNumber; slot++) {
         auto recordOffsetPos = getNthSlotOffset(slot) + sizeof(SlotPointerIndicator);
-        RecordOffset recordOffset;
-        memcpy(&recordOffset, (char *) page + recordOffsetPos, sizeof(RecordOffset));
+        PageOffset recordOffset;
+        memcpy(&recordOffset, (char *) page + recordOffsetPos, sizeof(PageOffset));
         if (recordOffset == DeletedRecordOffset) return slot;
     }
     // no unused slots, create a new slot
     return slotNumber;
 }
 
-void DataPage::parseSlot(int slot, SlotPointerIndicator &isPointer, RecordOffset &recordOffset, RecordLength &recordLen){
+void DataPage::parseSlot(SlotNumber slot, SlotPointerIndicator &isPointer, PageOffset &recordOffset, RecordSize &recordLen){
     auto slotOffset = getNthSlotOffset(slot);
     isPointer = *(SlotPointerIndicator *)((char *) page + slotOffset);
     slotOffset += sizeof(SlotPointerIndicator);
-    memcpy(&recordOffset, (char *) page + slotOffset, sizeof(RecordOffset));
-    slotOffset += sizeof(RecordOffset);
-    memcpy(&recordLen, (char *) page + slotOffset, sizeof(RecordLength));
+    memcpy(&recordOffset, (char *) page + slotOffset, sizeof(PageOffset));
+    slotOffset += sizeof(PageOffset);
+    memcpy(&recordLen, (char *) page + slotOffset, sizeof(RecordSize));
 }
 
-void DataPage::deleteSlot(int slot) {
+void DataPage::deleteSlot(SlotNumber slot) {
     auto slotOffset = getNthSlotOffset(slot);
     *((SlotPointerIndicator *)((char *)page + slotOffset)) = false;
     slotOffset += sizeof(SlotPointerIndicator);
-    RecordOffset deletedOffset = DeletedRecordOffset;
-    memcpy((char *) page + slotOffset, &deletedOffset, sizeof(RecordOffset));
+    PageOffset deletedOffset = DeletedRecordOffset;
+    memcpy((char *) page + slotOffset, &deletedOffset, sizeof(PageOffset));
 }
 
-void DataPage::updateSlotInfo(RecordOffset offset, RecordLength length, bool dir) {
+void DataPage::updateSlotInfo(PageOffset offset, RecordSize length, bool dir) {
     int slotOffset = 0;
     for(int i = 0; i < slotNumber; i++){
         slotOffset = getNthSlotOffset(i);
@@ -427,8 +427,8 @@ void DataPage::updateSlotInfo(RecordOffset offset, RecordLength length, bool dir
             continue;
         }
         slotOffset += sizeof(SlotPointerIndicator);
-        RecordOffset curOffset;
-        memcpy(&curOffset, (char *)page + slotOffset, sizeof(RecordOffset));
+        PageOffset curOffset;
+        memcpy(&curOffset, (char *)page + slotOffset, sizeof(PageOffset));
         if(curOffset == DeletedRecordOffset){
             continue;
         }
@@ -438,13 +438,13 @@ void DataPage::updateSlotInfo(RecordOffset offset, RecordLength length, bool dir
             }else{
                 curOffset += length;
             }
-            memcpy((char *) page + slotOffset, &curOffset, sizeof(RecordOffset));
+            memcpy((char *) page + slotOffset, &curOffset, sizeof(PageOffset));
         }
     }
 
 }
 
-void DataPage::moveRecords(RecordOffset startOffset, RecordOffset targetOffset) {
+void DataPage::moveRecords(PageOffset startOffset, PageOffset targetOffset) {
     auto moveSize = this->freeSpaceOffset - startOffset;
     //std::cout << targetOffset << " " << startOffset << " " << moveSize << std::endl;  //debug
     memmove((char *) this->page + targetOffset, (char *) this->page + startOffset, moveSize);
@@ -453,8 +453,8 @@ void DataPage::moveRecords(RecordOffset startOffset, RecordOffset targetOffset) 
 
 void DataPage::printSlots() {
     SlotNumber slotPerLine = 10;
-    RecordLength recordLength;
-    RecordOffset recordOffset;
+    RecordSize recordLength;
+    PageOffset recordOffset;
     SlotPointerIndicator isPointer;
     for (SlotNumber i = 0; i < slotNumber; i++) {
         if (i != 0 && i % slotPerLine == 0) std::cout << std::endl;
@@ -484,18 +484,18 @@ SlotNumber DataPage::insertRecord(Record &record) {
     //std::cout << " SLOT at: " << offset << " end: " << offset + SlotSize << "\t";  // debug
     *((SlotPointerIndicator *) ((char *) page + offset)) = false;
     offset += sizeof(SlotPointerIndicator);
-    memcpy((char *) page + offset, &startOffset, sizeof(RecordOffset));
-    offset += sizeof(RecordOffset);
+    memcpy((char *) page + offset, &startOffset, sizeof(PageOffset));
+    offset += sizeof(PageOffset);
     auto recordSize = record.getSize();
-    memcpy((char *) page + offset, &recordSize, sizeof(RecordLength));
+    memcpy((char *) page + offset, &recordSize, sizeof(RecordSize));
     // update slot number
     if (slot == slotNumber) slotNumber++;
     return slot;  // slot index starts from 0
 }
 
-RecordLength DataPage::getRecordSize(SlotNumber slot) {
-    RecordOffset offset;
-    RecordLength length;
+RecordSize DataPage::getRecordSize(SlotNumber slot) {
+    PageOffset offset;
+    RecordSize length;
     SlotPointerIndicator isPointer;
 
     parseSlot(slot, isPointer, offset, length);
@@ -505,8 +505,8 @@ RecordLength DataPage::getRecordSize(SlotNumber slot) {
 }
 
 void *DataPage::readRecord(SlotNumber slot) {
-    RecordOffset offset;
-    RecordLength length;
+    PageOffset offset;
+    RecordSize length;
     SlotPointerIndicator isPointer;
 
     parseSlot(slot, isPointer, offset, length);
@@ -531,8 +531,8 @@ void DataPage::readRecordIntoRaw(const SlotNumber slot, const std::vector<Attrib
 
 //todo: check slot number;
 void DataPage::deleteRecord(SlotNumber &slotid) {
-    RecordOffset offset;
-    RecordLength length;
+    PageOffset offset;
+    RecordSize length;
     SlotPointerIndicator isPointer;
     parseSlot(slotid, isPointer, offset, length);
     assert(isPointer == 0);  // should not be a pointer
@@ -550,35 +550,35 @@ void DataPage::moveRecord(SlotNumber slot, const RID &newRID) {
     SlotPointerIndicator isPointer = true;
     memcpy((char *) page + slotOffset, &isPointer, sizeof(SlotPointerIndicator));
     slotOffset += sizeof(SlotPointerIndicator);
-    memcpy((char *) page + slotOffset, &newRID.pageNum, sizeof(RecordOffset));
-    slotOffset += sizeof(RecordOffset);
-    memcpy((char *) page + slotOffset, &newRID.slotNum, sizeof(RecordLength));
+    memcpy((char *) page + slotOffset, &newRID.pageNum, sizeof(PageOffset));
+    slotOffset += sizeof(PageOffset);
+    memcpy((char *) page + slotOffset, &newRID.slotNum, sizeof(RecordSize));
 }
 
-void DataPage::updateRecord(Record &updateRecord, RecordLength &slotid) {
-    RecordOffset offset;
-    RecordLength length;
+void DataPage::updateRecord(Record &updateRecord, SlotNumber &slotid) {
+    PageOffset offset;
+    RecordSize length;
     SlotPointerIndicator isPointer;
     parseSlot(slotid, isPointer, offset, length);
     assert(isPointer == 0);
-    RecordLength newLength = updateRecord.getSize();
+    RecordSize newLength = updateRecord.getSize();
     if(length < updateRecord.getSize()){
-        int movedLen = updateRecord.getSize() - length;
+        auto movedLen = updateRecord.getSize() - length;
         moveRecords(offset + length, offset + length + movedLen);
         memcpy((char*)page + offset, updateRecord.getRecordData(), newLength);
         // update length in the slot
-        auto slotOffset = getNthSlotOffset(slotid) + sizeof(SlotPointerIndicator) + sizeof(RecordOffset);
-        memcpy((char *) page + slotOffset, &newLength, sizeof(RecordLength));
+        auto slotOffset = getNthSlotOffset(slotid) + sizeof(SlotPointerIndicator) + sizeof(PageOffset);
+        memcpy((char *) page + slotOffset, &newLength, sizeof(RecordSize));
         updateSlotInfo(offset, movedLen, false);
         freeSpace -= movedLen;
         freeSpaceOffset += movedLen;
     }else{
-        int movedLen = length - newLength;
+        auto movedLen = length - newLength;
         moveRecords(offset + length, offset + length - movedLen);
         memcpy((char*)page + offset, updateRecord.getRecordData(), newLength);
         // update length in the slot
-        auto slotOffset = getNthSlotOffset(slotid) + sizeof(SlotPointerIndicator) + sizeof(RecordOffset);
-        memcpy((char *) page + slotOffset, &newLength, sizeof(RecordLength));
+        auto slotOffset = getNthSlotOffset(slotid) + sizeof(SlotPointerIndicator) + sizeof(PageOffset);
+        memcpy((char *) page + slotOffset, &newLength, sizeof(RecordSize));
         updateSlotInfo(offset, movedLen, true);
         freeSpace += movedLen;
         freeSpaceOffset -= movedLen;
@@ -586,8 +586,8 @@ void DataPage::updateRecord(Record &updateRecord, RecordLength &slotid) {
 }
 
 int DataPage::checkRecordExist(SlotNumber &slotid, RID &newRID) {
-    RecordOffset curOffset;
-    RecordLength curLength;
+    PageOffset curOffset;
+    RecordSize curLength;
     SlotPointerIndicator isPointer;
     parseSlot(slotid, isPointer, curOffset, curLength);
     if(isPointer){
@@ -742,7 +742,7 @@ Record::Record(void* data){
     }
 }
 
-int Record::getSize() { return size; }
+RecordSize Record::getSize() { return size; }
 
 const void * Record::getRecordData() {
     return record;

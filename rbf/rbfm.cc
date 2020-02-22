@@ -32,16 +32,6 @@ RC RecordBasedFileManager::getFirstPageAvailable(FileHandle &fileHandle, const i
     return -1;
 }
 
-//void RecordBasedFileManager::findDataPage(FileHandle &fileHandle, RecordLength &pageid, RecordOffset &slotid,
-//                                          void *targetPage) {
-//    bool isPointer = true;
-//    while(isPointer){
-//        fileHandle.readPage(pageid,targetPage);
-//        DataPage p(targetPage);
-//        p.checkRecordExist(isPointer, pageid, slotid);
-//    }
-//}
-
 RC RecordBasedFileManager::createFile(const std::string &fileName) {
     return PagedFileManager::instance().createFile(fileName);
 }
@@ -189,7 +179,7 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const std::vecto
     fileHandle.readPage(actualRID.pageNum, targetPage);
     DataPage page(targetPage);
 
-    RecordLength oldRecordSize = page.getRecordSize(actualRID.slotNum);
+    RecordSize oldRecordSize = page.getRecordSize(actualRID.slotNum);
     auto freespace = page.getFreeSpace();
     auto updatedSize = updatedRecord.getSize();
 

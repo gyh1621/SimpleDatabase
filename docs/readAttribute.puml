@@ -1,6 +1,0 @@
-@startuml
-participant RBFM as R
-
-R -> R: readRecord(fileHandle, descriptor, RID, recordData)
-R -> R: getAttributeData(descriptor, attributeName, attributeData)
-@enduml

@@ -282,7 +282,7 @@ void checkRecordOffsets(FileHandle &fileHandle) {
     for (PageNum i = 0; i < fileHandle.getNumberOfPages(); i++) {
         fileHandle.readPage(i, pageData);
         DataPage page(pageData);
-        std::vector<std::pair<RecordOffset, RecordLength>> offsets;
+        std::vector<std::pair<PageOffset, RecordSize>> offsets;
         for (unsigned slot = 0; slot < page.getSlotNumber(); slot++) {
             page.parseSlot(slot, isPointer, recordOffset, recordLen);
             if (isPointer || recordOffset == DataPage::DeletedRecordOffset) {
@@ -293,10 +293,10 @@ void checkRecordOffsets(FileHandle &fileHandle) {
         }
 
         std::sort(offsets.begin(), offsets.end());
-        RecordOffset lastRecordEnd = 0;
+        PageOffset lastRecordEnd = 0;
         for (const auto &pair: offsets) {
-            RecordOffset offset = pair.first;
-            RecordLength length = pair.second;
+            PageOffset offset = pair.first;
+            RecordSize length = pair.second;
             if (lastRecordEnd != offset) {
                 std::cout << "record offset mismatches in page: " << i << std::endl;
                 std::cout << "last record end: " << lastRecordEnd << " current record start: " << recordOffset << std::endl;
