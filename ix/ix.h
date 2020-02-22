@@ -5,6 +5,7 @@
 #include <string>
 
 #include "../rbf/rbfm.h"
+#include "nodepage.h"
 
 # define IX_EOF (-1)  // end of the index scan
 
@@ -87,6 +88,18 @@ public:
 
     // Put the current counter values of associated PF FileHandles into variables
     RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);
+
+    // Create a node page
+    // return 0 - success, other -fail
+    RC createNodePage(void* pageData, PageNum &pageID, bool &isLeaf);
+
+    // Read a node page
+    // return 0 - success, other- fail
+    RC readNodePage(void *pageData, const PageNum &pageID);
+
+    // Write a node page
+    // return 0 - success, other - fail
+    RC writeNodePage(const void *pageData, const PageNum &pageID);
 
 };
 
