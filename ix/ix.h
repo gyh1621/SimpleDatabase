@@ -15,13 +15,18 @@ class IXFileHandle;
 
 class IndexManager {
 
+private:
+    bool fileExist(const std::string &fileName);
+
 public:
     static IndexManager &instance();
 
     // Create an index file.
+    // return 0 - success, 1 - file exists
     RC createFile(const std::string &fileName);
 
     // Delete an index file.
+    // return 0 - success, 1 - file not exists,  other - return by remove()
     RC destroyFile(const std::string &fileName);
 
     // Open an index and return an ixFileHandle.
@@ -100,6 +105,12 @@ public:
     // Write a node page
     // return 0 - success, other - fail
     RC writeNodePage(const void *pageData, const PageNum &pageID);
+
+    // Get root node page id
+    PageNum getRootNodeID();
+
+    // Set root node page id
+    void setRootNodeID();
 
 };
 

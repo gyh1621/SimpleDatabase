@@ -21,6 +21,7 @@ protected:
     PageFreeSpace freeSpace;
     SlotNumber slotNumber;
     bool isLeaf;
+    void *pageData;
 
     // passed page data, will not be delete in destructor
     // init empty data
@@ -37,6 +38,37 @@ public:
     PageFreeSpace getFreeSpace();
     SlotNumber getSlotNumber();
     bool isLeafNode() { return isLeaf; }
+    void *getPageData() { return pageData; }
+
+    /* Delete keys start from keyIndex */
+    // return 0 - success, other - fail
+    void deleteKeysStartFrom(const KeyNumber &keyIndex);
+
+    /* Get nth key data, n starts from 0 */
+    // if key type is varchar, "length" should be passed as 0,
+    // and will return a char pointer with "length" assigned with varchar's length
+    // if key type is int/float, return a int/float pointer
+    // error, return nullptr
+    void* getNthKey(const KeyNumber &keyIndex, AttrLength &length);
+
+    /* Copy data and slots */
+    // suppose one page is:
+    //  k0, k1, k2,.................
+    //  ............kn,.............
+    //  ......s0, s1, s2..., sn,....
+    // after executing:
+    //   "void* block = copyToEnd(1, dataLength, slotDataLength);"
+    // block will points to a memory block: k1, k2, ....., kn, s1, s2, ...., sn
+    //                                     |    dataLength + slotDataLength  |
+    // dataLength = address of kn - address of k1
+    // slotDataLength = address if sn - address of s1
+    // keyNumbers = n - 1 + 1 = n
+    //
+    // for key node page: kn is actually kn and pointer after kn
+    // for leaf node page: kn is actually kn and rids of kn
+    //
+    // if fail, return nullptr
+    void* copyToEnd(const KeyNumber &startKey, PageOffset &dataLength, PageOffset &slotDataLength, KeyNumber &keyNumbers);
 
 };
 
@@ -49,6 +81,12 @@ public:
     // passed page data, will not be delete in destructor
     // init empty data
     explicit KeyNodePage(void *pageData);
+
+    // used in spliting, *block comes from "copyToEnd"
+    KeyNodePage(void *pageData, const void* block, const KeyNumber &keyNumbers,
+                const PageOffset &dataLength, const PageOffset &slotDataLength,
+                const PageNum &prevKeyNodePageID);
+
     KeyNodePage(const KeyNodePage&) = delete;                             // copy constructor, implement when needed
     KeyNodePage(KeyNodePage&&) = delete;                                  // move constructor, implement when needed
     KeyNodePage& operator=(const KeyNodePage&) = delete;                  // copy assignment, implement when needed
@@ -59,12 +97,8 @@ public:
 
     /* NOTE: All methods below will throw assert error when key indexes are not valid */
 
-    /* Get nth key data, n starts from 0 */
-    // if key type is varchar, "length" should be passed as 0,
-    // and will return a char pointer with "length" assigned with varchar's length
-    // if key type is int/float, return a int/float pointer
-    // error, return nullptr
     void* getNthKey(const KeyNumber &keyIndex, AttrLength &length);
+    void deleteKeysStartFrom(const KeyNumber &keyIndex);
 
     /* Add a key */
     // not assign pointers of the key, only add a key to the page
@@ -79,10 +113,6 @@ public:
     /* Get pointers of a key */
     PageNum getLeftPointer(const KeyNumber &keyIndex);
     PageNum getRightPointer(const KeyNumber &keyIndex);
-
-    /* Delete keys start from keyIndex */
-    // return 0 - success, other - fail
-    void deleteKeysStartFrom(const KeyNumber &keyIndex);
 
 };
 
@@ -108,11 +138,19 @@ public:
     // passed page data, will not be delete in destructor
     // init empty data
     explicit LeafNodePage(void *pageData);
+
+    // used in spliting, *block comes from "copyToEnd"
+    LeafNodePage(void *pageData, const void* block, const KeyNumber &keyNumbers,
+                 const PageOffset &dataLength, const PageOffset &slotDataLength);
+
     LeafNodePage(const LeafNodePage&) = delete;                        // copy constructor, implement when needed
     LeafNodePage(LeafNodePage&&) = delete;                             // move constructor, implement when needed
     LeafNodePage& operator=(const LeafNodePage&) = delete;             // copy assignment, implement when needed
     LeafNodePage& operator=(LeafNodePage&&) = delete;                  // move assignment, implement when needed
     ~LeafNodePage() = default;
+
+    void* getNthKey(const KeyNumber &keyIndex, AttrLength &length);
+    void deleteKeysStartFrom(const KeyNumber &keyIndex);
 
     /* Add a RID */
     // if key type is varchar, *key is a char pointer and length is varchar's length
