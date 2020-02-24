@@ -142,16 +142,7 @@ RC IndexManager::deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
 
     if (isLeafNode) { // reach leaf node, delete target rid
         LeafNodePage node(page, false);
-        AttrLength length;
-        void* data;
-        if (attribute.type == TypeVarChar) {
-            length = 0;
-
-        } else {
-            length = sizeof(int);
-        }
-        data = node.getNthKey(cur, length);
-        free(data);
+        AttrLength length = 0;
         rc = node.deleteKey(key, length, rid);
     } else { // go through KeyNodes
         KeyNodePage node(page, false);
@@ -549,7 +540,7 @@ bool LeafNodePage::hasEnoughSpace(const Attribute &attribute, const void *key) {
 void LeafNodePage::addNewEntry(const Attribute &attribute, const void *key, const RID &rid) {
     AttrLength length;
     if (attribute.type == TypeVarChar) {
-        memcpy(&length, (char *) key, sizeof(int));
+        length = 0
     }else {
         length = sizeof(int);
     }
@@ -574,7 +565,7 @@ void KeyNodePage::addNewEntry(const Attribute &attribute, const void *key, const
     // add new key
     AttrLength length;
     if (attribute.type == TypeVarChar) {
-        memcpy(&length, (char *) key, sizeof(int));
+        length = 0;
     }else {
         length = sizeof(int);
     }
