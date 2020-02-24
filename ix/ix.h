@@ -18,7 +18,7 @@ private:
     // insert new Entry
     // if returnedKey key is not null, it means split happened before,
     // a new key and its right  pointer need to be added
-    // 0 - success, others - fail
+    // 0 - success, other - rid exists
     RC insertEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid, PageNum cur, PageNum returnedPointer, void *returnedKey);
 
     // delete given entry
@@ -28,7 +28,8 @@ private:
     void printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, PageNum &pageId, int level) const;
 
     // leaf node split function
-    void splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, const void *MiddleKey, PageNum &newNodeId);
+    // 0: success, 1: insert fail
+    RC splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, const void* key, const RID &rid, const void *MiddleKey, PageNum &newNodeId);
     // key node split function
     void splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, const void *MiddleKey, PageNum &newNodeId);
     // find which pointer contains the given key
@@ -38,7 +39,7 @@ private:
     // print several spaces;
     void printSpace(int spaceNum) const;
     void printKey(const Attribute &attribute, const void *data) const;
-    void printRids(const void* data, PageFreeSpace startOffset, PageFreeSpace endOffset) const;
+    void printRids(const void* data, PageFreeSpace totalLength) const;
 public:
     static IndexManager &instance();
 

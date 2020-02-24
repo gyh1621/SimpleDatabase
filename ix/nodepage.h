@@ -140,7 +140,8 @@ public:
 
     bool hasEnoughSpace(const Attribute &attribute, const void *key);
 
-    void addNewEntry(const Attribute &attribute, const void *key, const RID &rid);
+    // 0: success, other - rid exists
+    RC addNewEntry(const Attribute &attribute, const void *key, const RID &rid);
 };
 
 #endif //CS222P_WINTER20_NODEPAGE_H
