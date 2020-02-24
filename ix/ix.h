@@ -14,7 +14,31 @@ class IX_ScanIterator;
 class IXFileHandle;
 
 class IndexManager {
+private:
+    // insert new Entry
+    // if returnedKey key is not null, it means split happened before,
+    // a new key and its right  pointer need to be added
+    // 0 - success, others - fail
+    RC insertEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid, PageNum cur, PageNum returnedPointer, void *returnedKey);
 
+    // delete given entry
+    // 0 - success, 1 - entry not exist
+    RC deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid, PageNum cur);
+
+    void printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, PageNum &pageId, int level) const;
+
+    // leaf node split function
+    void splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, const void *MiddleKey, PageNum &newNodeId);
+    // key node split function
+    void splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, const void *MiddleKey, PageNum &newNodeId);
+    // find which pointer contains the given key
+    PageNum findNextNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum &cur, const void *key);
+
+    // printBTree helper functions;
+    // print several spaces;
+    void printSpace(int spaceNum) const;
+    void printKey(const Attribute &attribute, const void *data) const;
+    void printRids(const void* data, PageFreeSpace startOffset, PageFreeSpace endOffset) const;
 public:
     static IndexManager &instance();
 
@@ -48,6 +72,7 @@ public:
     // Print the B+ tree in pre-order (in a JSON record format)
     void printBtree(IXFileHandle &ixFileHandle, const Attribute &attribute) const;
 
+    static std::string getString(const void* key);
 protected:
     IndexManager() = default;                                                   // Prevent construction
     ~IndexManager() = default;                                                  // Prevent unwanted destruction
@@ -58,7 +83,6 @@ protected:
 
 class IX_ScanIterator {
 public:
-
     // Constructor
     IX_ScanIterator();
 

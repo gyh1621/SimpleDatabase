@@ -38,6 +38,9 @@ public:
     SlotNumber getSlotNumber();
     bool isLeafNode() { return isLeaf; }
 
+    // 1: target > middle, 0: equals, -1: target < middle
+    int compareKey(const Attribute &attribute, const void* target, const void* middleKey);
+
 };
 
 
@@ -84,6 +87,10 @@ public:
     // return 0 - success, other - fail
     void deleteKeysStartFrom(const KeyNumber &keyIndex);
 
+    // check if current page has enough space for the new key
+    bool hasEnoughSpace(const Attribute &attribute, const void *key);
+    // add a new entry into the page
+    void addNewEntry(const Attribute &attribute, const void *key, const PageNum &pageId);
 };
 
 
@@ -131,6 +138,9 @@ public:
     /* Set next leaf page's pointer */
     void setNextLeafPageID(const PageNum &nextPageID);
 
+    bool hasEnoughSpace(const Attribute &attribute, const void *key);
+
+    void addNewEntry(const Attribute &attribute, const void *key, const RID &rid);
 };
 
 #endif //CS222P_WINTER20_NODEPAGE_H
