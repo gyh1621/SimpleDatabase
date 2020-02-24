@@ -79,8 +79,7 @@ class KeyNodePage: public NodePage {
 
 public:
     // passed page data, will not be delete in destructor
-    // init empty data
-    explicit KeyNodePage(void *pageData);
+    KeyNodePage(void *pageData, bool init=true);
 
     // used in spliting, *block comes from "copyToEnd"
     KeyNodePage(void *pageData, const void* block, const KeyNumber &keyNumbers,
@@ -136,8 +135,7 @@ class LeafNodePage: public NodePage {
 
 public:
     // passed page data, will not be delete in destructor
-    // init empty data
-    explicit LeafNodePage(void *pageData);
+    LeafNodePage(void *pageData, bool init=true);
 
     // used in spliting, *block comes from "copyToEnd"
     LeafNodePage(void *pageData, const void* block, const KeyNumber &keyNumbers,
@@ -158,9 +156,9 @@ public:
     void addKey(const void *key, const AttrLength &length, const RID &rid);
 
     /* Delete a RID */
-    // if rid not exist, throw assert error
     // if key type is varchar, *key is a char pointer and length is varchar's length
-    void deleteKey(const void *key, const AttrLength &length, const RID &rid);
+    // return 0 - success, 1 - rid not exist
+    RC deleteKey(const void *key, const AttrLength &length, const RID &rid);
 
     /* Get next leaf page's pointer */
     // return 0 - success, other - no next leaf page

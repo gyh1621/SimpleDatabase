@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <fstream>
 
 #include "../rbf/rbfm.h"
 #include "nodepage.h"
@@ -30,9 +31,11 @@ public:
     RC destroyFile(const std::string &fileName);
 
     // Open an index and return an ixFileHandle.
+    // return: 0 - success, -1 - ixFileHandle already occupied, 1 - file not exists
     RC openFile(const std::string &fileName, IXFileHandle &ixFileHandle);
 
     // Close an ixFileHandle for an index.
+    // return: 0
     RC closeFile(IXFileHandle &ixFileHandle);
 
     // Insert an entry into the given index that is indicated by the given ixFileHandle.
@@ -78,12 +81,39 @@ public:
 };
 
 class IXFileHandle {
+private:
+
+    std::fstream *handle;
+    PageNum rootPageID;
+
+    /* write hidden page
+     *
+     * Hidden page format:
+     * ┌───────┬──────────────────┬───────────────────┬────────────────────┬─────────────┬────────────────┐
+     * │IsInit │ readPageCounter  │ writePageCounter  │ appendPageCounter  │ pageNumber  │  root page id  │
+     * └───────┴──────────────────┴───────────────────┴────────────────────┴─────────────┴────────────────┘
+     *
+     * Return:
+     *  0: success
+     *  1: fail, currently only when no file is open
+     */
+    RC writeHiddenPage();
+
+    /* read counters from the hidden page
+     * Return:
+     *  0: success
+     *  1: fail, file not contain a hidden page
+     */
+    RC readHiddenPage();
+
 public:
 
+    PageNum totalPageNum;
+
     // variables to keep counter for each operation
-    unsigned ixReadPageCounter;
-    unsigned ixWritePageCounter;
-    unsigned ixAppendPageCounter;
+    Counter ixReadPageCounter;
+    Counter ixWritePageCounter;
+    Counter ixAppendPageCounter;
 
     // Constructor
     IXFileHandle();
@@ -92,11 +122,22 @@ public:
     ~IXFileHandle();
 
     // Put the current counter values of associated PF FileHandles into variables
-    RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);
+    RC collectCounterValues(Counter &readPageCount, Counter &writePageCount, Counter &appendPageCount);
 
-    // Create a node page
+    /* Set file handle */
+    // not check if handle is occupied
+    void setHandle(std::fstream *f);
+
+    /* Release file handle */
+    // not check if handle is occupied
+    void releaseHandle();
+
+    /* Return handler status */
+    bool isOccupied();
+
+    // append a node page
     // return 0 - success, other -fail
-    RC createNodePage(void* pageData, PageNum &pageID, bool &isLeaf);
+    RC appendNodePage(const void* pageData, PageNum &pageID);
 
     // Read a node page
     // return 0 - success, other- fail
@@ -107,10 +148,10 @@ public:
     RC writeNodePage(const void *pageData, const PageNum &pageID);
 
     // Get root node page id
-    PageNum getRootNodeID();
+    PageNum getRootNodeID() { return rootPageID; };
 
     // Set root node page id
-    void setRootNodeID();
+    void setRootNodeID(const PageNum &rootPageID) { this->rootPageID = rootPageID; };
 
 };
 
