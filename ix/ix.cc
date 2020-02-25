@@ -54,7 +54,7 @@ void IndexManager::printBtree(IXFileHandle &ixFileHandle, const Attribute &attri
 }
 
 RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid,
-                             PageNum cur, PageNum returnedPointer, void *returnedKey) {
+                             PageNum cur, PageNum &returnedPointer, void *returnedKey) {
     RC rc = 0;
     void* page = malloc(PAGE_SIZE);
     ixFileHandle.readNodePage(page, cur);
@@ -279,7 +279,7 @@ PageNum IndexManager::findNextNode(IXFileHandle &ixFileHandle, const Attribute &
 }
 
 void IndexManager::splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id,
-                                const void* middleKey, PageNum &newNodeId) {
+                                void* middleKey, PageNum &newNodeId) {
     // create new page, move half entries to the new one;
     void* curPage = malloc(PAGE_SIZE);
     void* newPage = malloc(PAGE_SIZE);
@@ -331,25 +331,26 @@ void IndexManager::splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &att
     }
 
     // set middleKey
-    if (attribute.type == TypeVarChar) {
-        AttrLength length;
-        memcpy(&length, (char *) middle, sizeof(AttrLength));
-        memcpy((char *) middleKey, (char *) middle, sizeof(AttrLength) + length);
-    } else {
-        memcpy((char *) middleKey, (char *) middle, sizeof(int));
-    }
+//    if (attribute.type == TypeVarChar) {
+//        AttrLength length;
+//        memcpy(&length, (char *) middle, sizeof(AttrLength));
+//        memcpy((char *) middleKey, (char *) middle, sizeof(AttrLength) + length);
+//    } else {
+//        memcpy((char *) middleKey, (char *) middle, sizeof(int));
+//    }
+    free(middleKey);
+    middleKey = middle;
 
     ixFileHandle.writeNodePage(curPage, id);
     ixFileHandle.appendNodePage(newPage, newNodeId);
 
     free(curPage);
     free(newPage);
-    free(middle);
     free(movedBlock);
 }
 
 RC IndexManager::splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, const void* key,
-                                 const RID &rid, const void *middleKey, PageNum &newNodeId) {
+                                 const RID &rid, void *middleKey, PageNum &newNodeId) {
     RC rc;
     // create new page, move half entries to the new one;
     void* curPage = malloc(PAGE_SIZE);
@@ -367,14 +368,14 @@ RC IndexManager::splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attr
 
     // set middleKey
     void* middle = curNode.getNthKey(splitPosition - 1, attribute.type);
-    if (attribute.type == TypeVarChar) {
-        AttrLength length;
-        memcpy(&length, (char *) middle, sizeof(AttrLength));
-        memcpy((char *) middleKey, (char *) middle, sizeof(AttrLength) + length);
-    } else {
-        memcpy((char *) middleKey, (char *) middle, sizeof(int));
-    }
-    free(middle);
+//    if (attribute.type == TypeVarChar) {
+//        AttrLength length;
+//        memcpy(&length, (char *) middle, sizeof(AttrLength));
+//        memcpy((char *) middleKey, (char *) middle, sizeof(AttrLength) + length);
+//    } else {
+//        memcpy((char *) middleKey, (char *) middle, sizeof(int));
+//    }
+    middleKey = middle;
 
 //    void* removedKey = malloc(PAGE_SIZE);
 //    void* tempKey;
