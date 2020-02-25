@@ -195,6 +195,9 @@ public:
     // return 0 - success, 1 - rid already exists
     RC addKey(const void *key, const AttrType &attrType, const RID &rid);
 
+    /* Get rids of a key */
+    void *getRIDs(const KeyNumber &keyIndex, PageOffset &dataLength, const AttrType &attrType);
+
     /* Delete a RID */
     // when key is varchar, "key" is a pointer to "length" + "string"
     // return 0 - success, 1 - rid/key not exist

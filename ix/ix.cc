@@ -579,6 +579,27 @@ PageOffset LeafNodePage::findRid(const KeyNumber &keyIndex, const AttrType &attr
     return 0;
 }
 
+void * LeafNodePage::getRIDs(const KeyNumber &keyIndex, PageOffset &dataLength, const AttrType &attrType) {
+    void *key = getNthKey(keyIndex, attrType);
+    PageOffset keyLength = getKeyLength(key, attrType);
+    PageOffset ridsStartOffset = getNthKeyOffset(keyIndex) + keyLength;
+    PageOffset ridsEndOffset;
+    if (keyIndex == slotNumber - 1) {
+        ridsEndOffset = getFreeSpaceOffset();
+    } else {
+        ridsEndOffset = getNthKeyOffset(keyIndex + 1);
+    }
+    free(key);
+
+    dataLength = ridsEndOffset - ridsStartOffset;
+
+    void *rids = malloc(dataLength);
+    if (rids == nullptr) throw std::bad_alloc();
+    memcpy(rids, (char *) pageData + ridsStartOffset, dataLength);
+
+    return rids;
+}
+
 RC LeafNodePage::addKey(const void *key, const AttrType &attrType, const RID &rid) {
     // find key index
     KeyNumber keyIndex;
