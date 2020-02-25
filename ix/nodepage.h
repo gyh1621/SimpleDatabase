@@ -7,6 +7,10 @@ class NodePage {
 
     /*
     * Basic page format (shared structure between KeyNode and LeafNode):
+     *
+     * offset in slots points to the start of the key
+     * slots grows from page's end to start
+     *
     * ┌────────────────────────────────────────────────────────────────────────────────┐
     * │ DATA SECTION                                                                   │
     * │                                                                                │
@@ -22,34 +26,66 @@ protected:
     SlotNumber slotNumber;
     bool isLeaf;
     void *pageData;
+    PageOffset infoSectionLength = sizeof(bool) + sizeof(SlotNumber) + sizeof(PageFreeSpace);
 
     // passed page data, will not be delete in destructor
     // init empty data
-    explicit NodePage(void *pageData);
+    NodePage(void *pageData, bool init);
     NodePage(const NodePage&) = delete;                             // copy constructor, implement when needed
     NodePage(NodePage&&) = delete;                                  // move constructor, implement when needed
     NodePage& operator=(const NodePage&) = delete;                  // copy assignment, implement when needed
     NodePage& operator=(NodePage&&) = delete;                       // move assignment, implement when needed
     ~NodePage() = default;
 
-    void moveData(PageOffset startOffset, PageOffset targetOffset, PageOffset length);
+    /* get current free space start offset */
+    PageOffset getFreeSpaceOffset();
+
+    void moveData(const PageOffset &startOffset, const PageOffset &targetOffset, const PageOffset &length);
+
+    /* update slots */
+    // if add is true, add "deviateOffset" from startSlot to endSlot(included)
+    void updateSlots(const SlotNumber &startSlot, const SlotNumber &endSlot, const PageOffset &deviateOffset, bool add);
+
+    PageOffset getNthSlotOffset(const KeyNumber &keyIndex);
+    PageOffset getNthKeyOffset(const KeyNumber &keyIndex);
+
+    /* write nth key's offset to the corresponding slot */
+    // this slot should exist, otherwise will throw error
+    void writeNthSlot(const KeyNumber &keyIndex, const PageOffset &keyOffset);
+
+    /* find position of key */
+    // "key" points to "length + string" if type is varchar
+    // if exits, return true, key index is actual position
+    // if not exits, return false, key index is key's position if inserted
+    bool findKey(const void *key, const AttrType &attrType, SlotNumber &keyIndex);
 
 public:
-    PageFreeSpace getFreeSpace();
-    SlotNumber getSlotNumber();
-    bool isLeafNode() { return isLeaf; }
+
+    /* is *data a leaf node page data or key node page data */
+    static bool isLeafNode(void *data);
+
+    /* compute a key's length */
+    static PageOffset getKeyLength(const void *key, const AttrType &attrType);
+
+    PageFreeSpace getFreeSpace() { return freeSpace; };
+    SlotNumber getSlotNumber() { return slotNumber; };
     void *getPageData() { return pageData; }
 
+    /* compare two data based on type */
+    // when type is varchar, data points to "length + string"
+    // if data1 > data2, return positive;
+    // if data2 < data2, return negative;
+    // if data1 == data2, return 0;
+    static RC compare(const void *data1, const void *data2, const AttrType &attrType);
+
     /* Delete keys start from keyIndex */
-    // return 0 - success, other - fail
     void deleteKeysStartFrom(const KeyNumber &keyIndex);
 
     /* Get nth key data, n starts from 0 */
-    // if key type is varchar, "length" should be passed as 0,
-    // and will return a char pointer with "length" assigned with varchar's length
+    // if type is varchar, will return a pointer to "length + string"
     // if key type is int/float, return a int/float pointer
     // error, return nullptr
-    void* getNthKey(const KeyNumber &keyIndex, AttrLength &length);
+    void* getNthKey(const KeyNumber &keyIndex, const AttrType &attrType);
 
     /* Copy data and slots */
     // suppose one page is:
@@ -79,7 +115,7 @@ class KeyNodePage: public NodePage {
 
 public:
     // passed page data, will not be delete in destructor
-    KeyNodePage(void *pageData, bool init=true);
+    explicit KeyNodePage(void *pageData, bool init=true);
 
     // used in spliting, *block comes from "copyToEnd"
     KeyNodePage(void *pageData, const void* block, const KeyNumber &keyNumbers,
@@ -96,14 +132,12 @@ public:
 
     /* NOTE: All methods below will throw assert error when key indexes are not valid */
 
-    void* getNthKey(const KeyNumber &keyIndex, AttrLength &length);
-    void deleteKeysStartFrom(const KeyNumber &keyIndex);
-
     /* Add a key */
+    // not check whether has enough space
     // not assign pointers of the key, only add a key to the page
-    // when key is varchar, "key" is char pointer, and "length" is varchar's length
+    // when key is varchar, "key" is a pointer to "length" + "string"
     // return 0 - success, other- fail
-    void addKey(const void *key, const AttrLength &length);
+    void addKey(const void *key, const AttrType &attrType, KeyNumber &keyIndex);
 
     /* Set pointers of a key */
     void setLeftPointer(const KeyNumber &keyIndex, const PageNum &pageID);
@@ -133,6 +167,13 @@ class LeafNodePage: public NodePage {
     // default is 0 indicating no next leaf page
     PageNum nextLeafPage;
 
+private:
+
+    /* find whether rid exists */
+    // if not exist, return 0, else return rid start offset
+    PageOffset findRid(const KeyNumber &keyIndex, const AttrType &attrType, const RID &rid);
+
+
 public:
     // passed page data, will not be delete in destructor
     LeafNodePage(void *pageData, bool init=true);
@@ -147,18 +188,17 @@ public:
     LeafNodePage& operator=(LeafNodePage&&) = delete;                  // move assignment, implement when needed
     ~LeafNodePage() = default;
 
-    void* getNthKey(const KeyNumber &keyIndex, AttrLength &length);
-    void deleteKeysStartFrom(const KeyNumber &keyIndex);
-
     /* Add a RID */
-    // if key type is varchar, *key is a char pointer and length is varchar's length
+    // not check whether has enough space
+    // when key is varchar, "key" is a pointer to "length" + "string"
     // if key already exists, the new rid will append to the existed rids of the same key
-    void addKey(const void *key, const AttrLength &length, const RID &rid);
+    // return 0 - success, 1 - rid already exists
+    RC addKey(const void *key, const AttrType &attrType, const RID &rid);
 
     /* Delete a RID */
-    // if key type is varchar, *key is a char pointer and length is varchar's length
-    // return 0 - success, 1 - rid not exist
-    RC deleteKey(const void *key, const AttrLength &length, const RID &rid);
+    // when key is varchar, "key" is a pointer to "length" + "string"
+    // return 0 - success, 1 - rid/key not exist
+    RC deleteKey(const void *key, const AttrType &attrType, const RID &rid);
 
     /* Get next leaf page's pointer */
     // return 0 - success, other - no next leaf page
