@@ -152,14 +152,14 @@ void IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attri
         void* tempKey;
         void* tempRID;
 
-        PageFreeSpace ridLength;
+        PageOffset ridLength;
         // print each key and the following rids
         for (int i = 0; i < slotNumber; i++) {
             tempKey = node.getNthKey(i, attribute.type);
             std::cout << "\"";
             printKey(attribute, tempKey);
             std::cout << ":[";
-            tempRID = node.getRIDs(i, ridLength);
+            tempRID = node.getRIDs(i, ridLength, attribute.type);
             printRids(tempRID, ridLength);
             std::cout << "]\"";
             if (i < slotNumber - 1) {
@@ -238,9 +238,9 @@ void IndexManager::printKey(const Attribute &attribute, const void *data) const 
     }
 }
 
-void IndexManager::printRids(const void *data, PageFreeSpace totalLength) const {
-    PageFreeSpace length = 0;
-    PageFreeSpace ridLength = sizeof(PageNum) + sizeof(SlotNumber);
+void IndexManager::printRids(const void *data, PageOffset totalLength) const {
+    PageOffset length = 0;
+    PageOffset ridLength = sizeof(PageNum) + sizeof(SlotNumber);
     PageNum pageNum;
     SlotNumber slotNum;
     while (length < totalLength) {
