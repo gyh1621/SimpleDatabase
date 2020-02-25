@@ -37,10 +37,6 @@ public:
     PageFreeSpace getFreeSpace();
     SlotNumber getSlotNumber();
     bool isLeafNode() { return isLeaf; }
-
-    // 1: target > middle, 0: equals, -1: target < middle
-    int compareKey(const Attribute &attribute, const void* target, const void* middleKey);
-
 };
 
 
