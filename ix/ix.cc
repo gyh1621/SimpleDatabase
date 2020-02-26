@@ -72,6 +72,10 @@ RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
                 ixFileHandle.writeNodePage(page, cur);
             }
         } else {
+            if (node.getSlotNumber() == 1) {
+                throw std::invalid_argument("page is already full with the same key");
+            }
+
             // split
             rc = splitLeafNode(ixFileHandle, attribute, cur, key, rid, returnedKey, returnedPointer);
 
