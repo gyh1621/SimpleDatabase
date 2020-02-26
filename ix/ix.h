@@ -107,6 +107,9 @@ public:
 };
 
 class IXFileHandle {
+public:
+    static const PageNum NotExistRootPageID = 0;  // 0 is hidden page
+
 private:
 
     std::fstream *handle;

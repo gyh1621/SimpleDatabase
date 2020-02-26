@@ -37,6 +37,12 @@ protected:
     NodePage& operator=(NodePage&&) = delete;                       // move assignment, implement when needed
     ~NodePage() = default;
 
+    /* write info section */
+    void writeInfoSection();
+
+    /* read info section */
+    void readInfoSection();
+
     /* get current free space start offset */
     PageOffset getFreeSpaceOffset();
 
@@ -179,6 +185,9 @@ private:
     // if not exist, return 0, else return rid start offset
     PageOffset findRid(const KeyNumber &keyIndex, const AttrType &attrType, const RID &rid);
 
+    void readInfoSection();
+
+    void writeInfoSection();
 
 public:
     // passed page data, will not be delete in destructor

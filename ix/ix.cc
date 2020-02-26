@@ -56,6 +56,14 @@ std::string IndexManager::getString(const void *key) {
 RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid) {
     RC rc;
     PageNum root = ixFileHandle.getRootNodeID();
+    if (root == IXFileHandle::NotExistRootPageID) {
+        void *pageData = malloc(PAGE_SIZE);
+        if (pageData == nullptr) throw std::bad_alloc();
+        LeafNodePage nodePage(pageData, true);
+        ixFileHandle.appendNodePage(nodePage.getPageData(), root);
+        ixFileHandle.setRootNodeID(root);
+        free(pageData);
+    }
     PageNum returnedPointer = root;
     void* returnedKey = malloc(PAGE_SIZE);
     int hasReturned = 0;
@@ -205,7 +213,7 @@ void IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attri
 
         PageOffset ridLength;
         // print each key and the following rids
-        for (int i = 0; i < slotNumber; i++) {
+        for (SlotNumber i = 0; i < slotNumber; i++) {
             tempKey = node.getNthKey(i, attribute.type);
             std::cout << "\"";
             printKey(attribute, tempKey);
@@ -292,14 +300,11 @@ void IndexManager::printKey(const Attribute &attribute, const void *data) const 
 void IndexManager::printRids(const void *data, PageOffset totalLength) const {
     PageOffset length = 0;
     //PageOffset ridLength = sizeof(PageNum) + sizeof(SlotNumber);
-    PageNum pageNum;
-    SlotNumber slotNum;
+    RID rid;
     while (length < totalLength) {
-        memcpy(&pageNum, (char *) data + length, sizeof(PageNum));
-        length += sizeof(PageNum);
-        memcpy(&slotNum, (char *) data + length, sizeof(SlotNumber));
-        length += sizeof(SlotNumber);
-        std::cout << "(" << pageNum << "," << slotNum << ")";
+        memcpy(&rid, (char *) data + length, sizeof(RID));
+        std::cout << "(" << rid.pageNum << "," << rid.slotNum << ")";
+        length += sizeof(RID);
         if (length < totalLength) {
             std::cout << ",";
         }
@@ -503,7 +508,7 @@ IXFileHandle::IXFileHandle() {
     ixAppendPageCounter = 0;
     totalPageNum = 1;  // hidden page
     handle = nullptr;
-    rootPageID = 0;
+    rootPageID = NotExistRootPageID;
 }
 
 RC IXFileHandle::writeHiddenPage() {
@@ -615,12 +620,7 @@ NodePage::NodePage(void *pageData, bool init) {
     if (!init) {
         // read information from pageData
         this->pageData = pageData;
-        PageOffset offset = PAGE_SIZE - sizeof(bool);
-        memcpy(&isLeaf, (char *) pageData + offset, sizeof(bool));
-        offset -= sizeof(SlotNumber);
-        memcpy(&slotNumber, (char *) pageData + offset, sizeof(SlotNumber));
-        offset -= sizeof(PageFreeSpace);
-        memcpy(&freeSpace, (char *) pageData + offset, sizeof(PageFreeSpace));
+        readInfoSection();
     } else {
         // init
         this->pageData = pageData;
@@ -628,14 +628,28 @@ NodePage::NodePage(void *pageData, bool init) {
         // note: need update freeSpace in LeafNodePage's constructor
         freeSpace = PAGE_SIZE - infoSectionLength;
         // write to pageData
-        PageOffset offset = PAGE_SIZE - sizeof(bool);
-        memcpy((char *) pageData + offset, &isLeaf, sizeof(bool));
-        offset -= sizeof(SlotNumber);
-        memcpy((char *) pageData + offset, &slotNumber, sizeof(SlotNumber));
-        offset -= sizeof(PageFreeSpace);
-        memcpy((char *) pageData + offset, &freeSpace, sizeof(PageFreeSpace));
+        writeInfoSection();
     }
 }
+
+void NodePage::writeInfoSection() {
+    PageOffset offset = PAGE_SIZE - sizeof(bool);
+    memcpy((char *) pageData + offset, &isLeaf, sizeof(bool));
+    offset -= sizeof(SlotNumber);
+    memcpy((char *) pageData + offset, &slotNumber, sizeof(SlotNumber));
+    offset -= sizeof(PageFreeSpace);
+    memcpy((char *) pageData + offset, &freeSpace, sizeof(PageFreeSpace));
+}
+
+void NodePage::readInfoSection() {
+    PageOffset offset = PAGE_SIZE - sizeof(bool);
+    memcpy(&isLeaf, (char *) pageData + offset, sizeof(bool));
+    offset -= sizeof(SlotNumber);
+    memcpy(&slotNumber, (char *) pageData + offset, sizeof(SlotNumber));
+    offset -= sizeof(PageFreeSpace);
+    memcpy(&freeSpace, (char *) pageData + offset, sizeof(PageFreeSpace));
+}
+
 
 PageOffset NodePage::getFreeSpaceOffset() {
     return PAGE_SIZE - infoSectionLength - sizeof(PageOffset) * slotNumber - freeSpace;
@@ -919,6 +933,8 @@ void KeyNodePage::addKey(const void *key, const AttrType &attrType, KeyNumber &k
         updateSlots(keyIndex + 1, slotNumber - 1, insertLength, true);
     }
 
+    writeInfoSection();
+
 }
 
 void KeyNodePage::setLeftPointer(const KeyNumber &keyIndex, const PageNum &pageID) {
@@ -970,17 +986,36 @@ LeafNodePage::LeafNodePage(void *pageData, bool init): NodePage(pageData, init) 
     infoSectionLength += sizeof(PageNum);
     if (init) {
         isLeaf = true;
-        // write to pageData
-        PageOffset offset = PAGE_SIZE - sizeof(bool);
-        memcpy((char *) pageData + offset, &isLeaf, sizeof(bool));
-        nextLeafPage = 0;
-        memcpy((char *) pageData + PAGE_SIZE - infoSectionLength, &nextLeafPage, sizeof(PageNum));
         // update free space
         freeSpace = PAGE_SIZE - infoSectionLength;
+        // write to pageData
+        writeInfoSection();
     } else {
-        PageOffset offset = PAGE_SIZE - infoSectionLength;
-        memcpy(&nextLeafPage, (char *) pageData + offset, sizeof(PageNum));
+        readInfoSection();
     }
+}
+
+void LeafNodePage::readInfoSection() {
+    PageOffset offset = PAGE_SIZE - sizeof(bool);
+    memcpy(&isLeaf, (char *) pageData + offset, sizeof(bool));
+    offset -= sizeof(SlotNumber);
+    memcpy(&slotNumber, (char *) pageData + offset, sizeof(SlotNumber));
+    offset -= sizeof(PageFreeSpace);
+    memcpy(&freeSpace, (char *) pageData + offset, sizeof(PageFreeSpace));
+    offset -= sizeof(PageNum);
+    memcpy(&nextLeafPage, (char *) pageData + offset, sizeof(PageNum));
+}
+
+void LeafNodePage::writeInfoSection() {
+    PageOffset offset = PAGE_SIZE - sizeof(bool);
+    memcpy((char *) pageData + offset, &isLeaf, sizeof(bool));
+    offset -= sizeof(SlotNumber);
+    memcpy((char *) pageData + offset, &slotNumber, sizeof(SlotNumber));
+    offset -= sizeof(PageFreeSpace);
+    memcpy((char *) pageData + offset, &freeSpace, sizeof(PageFreeSpace));
+    offset -= sizeof(PageNum);
+    nextLeafPage = 0;
+    memcpy((char *) pageData + offset, &nextLeafPage, sizeof(PageNum));
 }
 
 LeafNodePage::LeafNodePage(void *pageData, const void *block, const KeyNumber &keyNumbers, const PageOffset &dataLength,
@@ -1135,6 +1170,8 @@ RC LeafNodePage::addKey(const void *key, const AttrType &attrType, const RID &ri
         }
     }
 
+    writeInfoSection();
+
     return 0;
 }
 
@@ -1211,6 +1248,8 @@ RC LeafNodePage::deleteKey(const void *key, const AttrType &attrType, const RID 
         }
     }
 
+    writeInfoSection();
+
     return 0;
 }
 
@@ -1231,11 +1270,14 @@ bool LeafNodePage::hasEnoughSpace(const Attribute &attribute, const void *key) {
 
     // add key size
     if (attribute.type == TypeVarChar) {
-        int length;
-        memcpy(&length, (char *) key, sizeof(int));
-        sizeNeeded += length + sizeof(int);
-    } else {
+        PageOffset keyLength = getKeyLength(key, attribute.type);
+        sizeNeeded += keyLength;
+    } else if (attribute.type == TypeInt) {
         sizeNeeded += sizeof(int);
+    } else if (attribute.type == TypeReal) {
+        sizeNeeded += sizeof(float);
+    } else {
+        throw std::invalid_argument("invalid attribute type.");
     }
 
     // add rid size
