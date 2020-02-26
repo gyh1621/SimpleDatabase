@@ -43,6 +43,14 @@ void writePageShouldNotFail(const void *pageData, IXFileHandle &ixFileHandle, co
     assert(rc == success && "write page should not fail.");
 }
 
+void buildVarcharKey(const int &seed, const int &length, void *key) {
+    memcpy(key, &length, 4);
+    for (int i = 0; i < length; i++) {
+        char c = seed + i;
+        memcpy((char *) key + 4 + i, &c, 1);
+    }
+}
+
 #endif
 
 
