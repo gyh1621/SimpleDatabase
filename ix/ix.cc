@@ -43,12 +43,33 @@ RC IndexManager::closeFile(IXFileHandle &ixFileHandle) {
     return 0;
 }
 
+std::string IndexManager::getString(const void *key) {
+    int length;
+    memcpy(&length, (char *) key, sizeof(int));
+    std::string str;
+    for (int i = 0; i < length; i++) {
+        str += *((char *) key + sizeof(int) + i);
+    }
+    return str;
+}
+
 RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid) {
-    return -1;
+    RC rc;
+    PageNum root = ixFileHandle.getRootNodeID();
+    PageNum returnedPointer = root;
+    void* returnedKey = malloc(PAGE_SIZE);
+    int hasReturned = 0;
+    memcpy((char *) returnedKey + PAGE_SIZE - sizeof(int), &hasReturned, sizeof(int));
+    rc = insertEntry(ixFileHandle, attribute, key, rid, root, returnedPointer, returnedKey);
+    free(returnedKey);
+    return rc;
 }
 
 RC IndexManager::deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid) {
-    return -1;
+    RC rc;
+    PageNum root = ixFileHandle.getRootNodeID();
+    rc = deleteEntry(ixFileHandle, attribute, key, rid, root);
+    return rc;
 }
 
 RC IndexManager::scan(IXFileHandle &ixFileHandle,
@@ -58,10 +79,408 @@ RC IndexManager::scan(IXFileHandle &ixFileHandle,
                       bool lowKeyInclusive,
                       bool highKeyInclusive,
                       IX_ScanIterator &ix_ScanIterator) {
+
     return -1;
 }
 
 void IndexManager::printBtree(IXFileHandle &ixFileHandle, const Attribute &attribute) const {
+    PageNum root = ixFileHandle.getRootNodeID();
+    printBTree(ixFileHandle, attribute, root, 0);
+}
+
+RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid,
+                             PageNum cur, PageNum &returnedPointer, void *returnedKey) {
+    RC rc = 0;
+    void* page = malloc(PAGE_SIZE);
+    ixFileHandle.readNodePage(page, cur);
+    bool isLeafNode = NodePage::isLeafNode(page);
+
+    if (isLeafNode) { // leafNode
+        LeafNodePage node(page, false);
+
+        if (node.hasEnoughSpace(attribute, key)) {
+            rc = node.addKey(key, attribute.type, rid);
+            if (rc == 0) {
+                ixFileHandle.writeNodePage(page, cur);
+            }
+        } else {
+            if (node.getSlotNumber() == 1) {
+                throw std::invalid_argument("page is already full with the same key");
+            }
+
+            // split
+            rc = splitLeafNode(ixFileHandle, attribute, cur, key, rid, returnedKey, returnedPointer);
+
+            // if current page is root, create new root
+            if (cur == ixFileHandle.getRootNodeID()) {
+                PageNum newRootid;
+                void* data = malloc(PAGE_SIZE);
+                KeyNodePage newRoot(data);
+
+                KeyNumber keyIndex;
+                newRoot.addKey(returnedKey, attribute.type, keyIndex);
+                newRoot.setRightPointer(0, returnedPointer);
+                newRoot.setLeftPointer(0, cur);
+                ixFileHandle.appendNodePage(data, newRootid);
+                ixFileHandle.setRootNodeID(newRootid);
+                free(data);
+            }
+        }
+    } else { // keyNode
+        KeyNodePage node(page, false);
+        PageNum targetNode = findNextNode(ixFileHandle, attribute, cur, key);
+        rc = insertEntry(ixFileHandle, attribute, key, rid, targetNode, returnedPointer, returnedKey);
+
+        int hasReturn;
+        memcpy(&hasReturn, (char *) returnedKey, sizeof(int));
+        // no split before;
+        if (hasReturn == 0) return 0;
+        // split detected, add returned entry
+        if (node.hasEnoughSpace(attribute, returnedKey)) {
+            KeyNumber keyIndex;
+            node.addKey(returnedKey, attribute.type, keyIndex);
+            node.setRightPointer(keyIndex, returnedPointer);
+            hasReturn = 0;
+            memcpy((char *) returnedKey, &hasReturn, sizeof(int));
+            ixFileHandle.writeNodePage(page, cur);
+        } else { // no enough space
+            // split
+            splitKeyNode(ixFileHandle, attribute, cur, returnedKey, returnedPointer);
+
+            // if current page is root, create new root
+            if (cur == ixFileHandle.getRootNodeID()) {
+                PageNum newRootid;
+                void* data = malloc(PAGE_SIZE);
+                KeyNodePage newRoot(data);
+
+                KeyNumber keyIndex;
+                newRoot.addKey(returnedKey, attribute.type, keyIndex);
+                newRoot.setRightPointer(0, returnedPointer);
+                newRoot.setLeftPointer(0, cur);
+                ixFileHandle.appendNodePage(data, newRootid);
+                ixFileHandle.setRootNodeID(newRootid);
+                free(data);
+            }
+        }
+    }
+    free(page);
+    return rc;
+}
+
+RC IndexManager::deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid,
+                             const PageNum &cur) {
+    RC rc = 0;
+    void* page = malloc(PAGE_SIZE);
+    ixFileHandle.readNodePage(page, cur);
+    bool isLeafNode = NodePage::isLeafNode(page);
+
+    if (isLeafNode) { // reach leaf node, delete target rid
+        LeafNodePage node(page, false);
+        rc = node.deleteKey(key, attribute.type, rid);
+        if (rc == 0) {
+            ixFileHandle.writeNodePage(page, cur);
+        }
+    } else { // go through KeyNodes
+        KeyNodePage node(page, false);
+        PageNum targetNode = findNextNode(ixFileHandle, attribute, cur, key);
+        rc = deleteEntry(ixFileHandle, attribute, key, rid, targetNode);
+    }
+    free(page);
+    return rc;
+}
+
+void IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, PageNum &pageId,
+                              int level) const {
+    void* data = malloc(PAGE_SIZE);
+    ixFileHandle.readNodePage(data, pageId);
+    bool isLeaf = NodePage::isLeafNode(data);
+
+    if (isLeaf) { // print leaf node in one line
+        printSpace(level);
+        std::cout << "{\"keys\": [";
+        LeafNodePage node(data, false);
+        SlotNumber slotNumber = node.getSlotNumber();
+        void* tempKey;
+        void* tempRID;
+
+        PageOffset ridLength;
+        // print each key and the following rids
+        for (int i = 0; i < slotNumber; i++) {
+            tempKey = node.getNthKey(i, attribute.type);
+            std::cout << "\"";
+            printKey(attribute, tempKey);
+            std::cout << ":[";
+            tempRID = node.getRIDs(i, ridLength, attribute.type);
+            printRids(tempRID, ridLength);
+            std::cout << "]\"";
+            if (i < slotNumber - 1) {
+                std::cout << ",";
+            }
+            free(tempKey);
+            free(tempRID);
+        }
+        std::cout << "]}";
+    } else { // print keyNode
+        printSpace(level);
+        std::cout << "{" << std::endl;
+        printSpace(level);
+        std::cout << "\"keys\": [";
+        KeyNodePage node(data, false);
+        void* tempKey;
+        SlotNumber slotNumber = node.getSlotNumber();
+        // print all keys;
+        for (int i = 0; i < slotNumber; i++) {
+            tempKey = node.getNthKey(i, attribute.type);
+            std::cout << "\"";
+            printKey(attribute, tempKey);
+            std::cout << "\"";
+            if (i < slotNumber - 1) {
+                std::cout << ",";
+            }
+            free(tempKey);
+        }
+        std::cout << "]," << std::endl;
+        printSpace(level);
+        std::cout << "\"children\": [" << std::endl;
+        PageNum pageNum;
+        // print children
+        pageNum = node.getLeftPointer(0);
+        printBTree(ixFileHandle, attribute, pageNum, level + 1);
+        if (slotNumber > 0) {
+            std::cout << "," << std::endl;
+        } else {
+            std::cout << std::endl;
+        }
+
+        for (int i = 0; i < slotNumber; i++) {
+            pageNum = node.getRightPointer(i);
+            printBTree(ixFileHandle, attribute, pageNum, level + 1);
+            if (i < slotNumber - 1) {
+                std::cout << "," << std::endl;
+            } else {
+                std::cout << std::endl;
+            }
+        }
+        printSpace(level);
+        std::cout << "]" << std::endl;
+        printSpace(level);
+        std::cout << "}";
+    }
+}
+
+void IndexManager::printSpace(int spaceNum) const {
+    for (int i = 0; i < spaceNum; i++) {
+        std::cout << " ";
+    }
+}
+
+void IndexManager::printKey(const Attribute &attribute, const void *data) const {
+    if (attribute.type == TypeVarChar) {
+        std::string str = getString(data);
+        std::cout << str;
+    } else if (attribute.type == TypeInt) {
+        int intKey;
+        memcpy(&intKey, (char *) data, sizeof(int));
+        std::cout << intKey;
+    } else {
+        float floatKey;
+        memcpy(&floatKey, (char *) data, sizeof(float));
+        std::cout << floatKey;
+    }
+}
+
+void IndexManager::printRids(const void *data, PageOffset totalLength) const {
+    PageOffset length = 0;
+    //PageOffset ridLength = sizeof(PageNum) + sizeof(SlotNumber);
+    PageNum pageNum;
+    SlotNumber slotNum;
+    while (length < totalLength) {
+        memcpy(&pageNum, (char *) data + length, sizeof(PageNum));
+        length += sizeof(PageNum);
+        memcpy(&slotNum, (char *) data + length, sizeof(SlotNumber));
+        length += sizeof(SlotNumber);
+        std::cout << "(" << pageNum << "," << slotNum << ")";
+        if (length < totalLength) {
+            std::cout << ",";
+        }
+    }
+}
+
+PageNum IndexManager::findNextNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum &cur,
+                                   const void *key) {
+    PageNum target;
+    void* page = malloc(PAGE_SIZE);
+    ixFileHandle.readNodePage(page, cur);
+    KeyNodePage curNode(page, false);
+    // initially, target is the left most pointer
+    target = curNode.getLeftPointer(0);
+    void* tempKey;
+    for (int i = 0; i < curNode.getSlotNumber(); i++) {
+        tempKey = curNode.getNthKey(i, attribute.type);
+        if (curNode.compare(key, tempKey, attribute.type) >= 0) {
+            target = curNode.getRightPointer(i);
+        } else { // target found stop
+            free(tempKey);
+            break;
+        }
+        free(tempKey);
+    }
+    free(page);
+    return target;
+}
+
+void IndexManager::splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id,
+                                void* returnedKey, PageNum &returnedPointer) {
+    // create new page, move half entries to the new one;
+    void* curPage = malloc(PAGE_SIZE);
+    void* newPage = malloc(PAGE_SIZE);
+    ixFileHandle.readNodePage(curPage, id);
+    KeyNodePage curNode(curPage, false);
+    int totalSlotNumber = curNode.getSlotNumber();
+
+    // splitPosition here is slotNumber, splitPosition - 1 is the actual keyIndex;
+    // start from splitPosition, the first one is pushed up and will not be moved to new Page
+    int splitPosition = (totalSlotNumber + 1) / 2;
+    PageOffset dataLength, slotDataLength;
+    KeyNumber keyNumber;
+    void* movedBlock = curNode.copyToEnd(splitPosition, dataLength, slotDataLength, keyNumber);
+    KeyNodePage newNode(newPage, movedBlock, keyNumber, dataLength, slotDataLength, id);
+
+//    void* removedKey = malloc(PAGE_SIZE);
+//    void* tempKey;
+//    PageNum rightPointer;
+//    AttrLength length;
+//    for (int i = splitPosition; i < totalSlotNumber; i++) {
+//        if (attribute.type == TypeVarChar) {
+//            length = 0;
+//            tempKey = curNode.getNthKey(i, length);
+//            memcpy((char *) removedKey, &length, sizeof(AttrLength));
+//            memcpy((char *) removedKey + sizeof(AttrLength), (char *)tempKey, length);
+//        } else {
+//            length = 4;
+//            tempKey = curNode.getNthKey(i, length);
+//            memcpy((char *) removedKey, (char *) tempKey, sizeof(int));
+//        }
+//        rightPointer = curNode.getRightPointer(i);
+//        newNode.addNewEntry(attribute, removedKey, rightPointer);
+//    }
+
+    // set left most pointer of new Page
+    newNode.setLeftPointer(0, curNode.getLeftPointer(splitPosition));
+
+    // get middleKey
+    void* middle;
+    middle = curNode.getNthKey(splitPosition - 1, attribute.type);
+    //delete half keys
+    curNode.deleteKeysStartFrom(splitPosition - 1);
+
+    // add new key
+    KeyNumber keyIndex;
+    if (curNode.compare(returnedKey, middle, attribute.type) < 0) {
+        curNode.addKey(returnedKey, attribute.type, keyIndex);
+        curNode.setRightPointer(keyIndex, returnedPointer);
+    } else {
+        newNode.addKey(returnedKey, attribute.type, keyIndex);
+        newNode.setRightPointer(keyIndex, returnedPointer);
+    }
+
+    // set middleKey
+    if (attribute.type == TypeVarChar) {
+        PageOffset length = NodePage::getKeyLength(middle, attribute.type);
+        memcpy((char *) returnedKey, (char *) middle, sizeof(AttrLength) + length);
+    } else {
+        memcpy((char *) returnedKey, (char *) middle, sizeof(int));
+    }
+
+    ixFileHandle.writeNodePage(curPage, id);
+    ixFileHandle.appendNodePage(newPage, returnedPointer);
+    free(curPage);
+    free(newPage);
+    free(movedBlock);
+    free(middle);
+}
+
+RC IndexManager::splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, const void* key,
+                                 const RID &rid, void *returnedKey, PageNum &returnedPointer) {
+    RC rc;
+    // create new page, move half entries to the new one;
+    void* curPage = malloc(PAGE_SIZE);
+    void* newPage = malloc(PAGE_SIZE);
+    ixFileHandle.readNodePage(curPage, id);
+    LeafNodePage curNode(curPage, false);
+    int totalSlotNumber = curNode.getSlotNumber();
+    // splitPosition here is slotNumber, splitPosition - 1 is the actual keyIndex;
+    // start from splitPosition, all keys will be moved to the new page
+    int splitPosition = (totalSlotNumber + 1) / 2 + 1;
+    PageOffset dataLength, slotDataLength;
+    KeyNumber keyNumber;
+    void* movedBlock = curNode.copyToEnd(splitPosition - 1, dataLength, slotDataLength, keyNumber);
+    LeafNodePage newNode(newPage, movedBlock, keyNumber, dataLength, slotDataLength);
+
+    // set middleKey
+    void* middle = curNode.getNthKey(splitPosition - 1, attribute.type);
+    if (attribute.type == TypeVarChar) {
+        PageOffset length = NodePage::getKeyLength(middle, attribute.type);
+        memcpy((char *) returnedKey, (char *) middle, sizeof(AttrLength) + length);
+    } else {
+        memcpy((char *) returnedKey, (char *) middle, sizeof(int));
+    }
+    int hasReturn = 1;
+    memcpy((char *) returnedKey + PAGE_SIZE - sizeof(int), &hasReturn, sizeof(int));
+
+//    void* removedKey = malloc(PAGE_SIZE);
+//    void* tempKey;
+//    void* ridPointer;
+//    RID rid;
+//    int ridLength;
+//    AttrLength length;
+//    for (int i = splitPosition; i < totalSlotNumber; i++) {
+//        if (attribute.type == TypeVarChar) {
+//            length = 0;
+//            tempKey = curNode.getNthKey(i, length);
+//            memcpy((char *) removedKey, &length, sizeof(AttrLength));
+//            memcpy((char *) removedKey + sizeof(AttrLength), (char *)tempKey, length);
+//        } else {
+//            length = 4;
+//            tempKey = curNode.getNthKey(i, length);
+//            memcpy((char *) removedKey, (char *) tempKey, sizeof(int));
+//        }
+//
+//        if (i == splitPosition) {
+//            memcpy((char *) middleKey, (char *) removedKey, sizeof(int) + length);
+//        }
+//
+//        ridPointer = curNode.getRIDs(i, ridLength);
+//        for (int j = 0; j < ridLength / sizeof(RID); j++) {
+//            memcpy(&rid, (char *)ridPointer + j * sizeof(RID), sizeof(RID));
+//            newNode.addNewEntry(attribute, removedKey, rid);
+//        }
+//    }
+
+    // delete half entries
+    curNode.deleteKeysStartFrom(splitPosition - 1);
+
+    // add new key
+    if (curNode.compare(key, returnedKey, attribute.type) < 0) {
+        rc = curNode.addKey(key, attribute.type, rid);
+    } else {
+        rc = newNode.addKey(key, attribute.type, rid);
+    }
+
+    ixFileHandle.writeNodePage(curPage, id);
+    ixFileHandle.appendNodePage(newPage, returnedPointer);
+
+    // set next Pointer
+    PageNum nextLeafPointer;
+    curNode.getNextLeafPageID(nextLeafPointer);
+    curNode.setNextLeafPageID(returnedPointer);
+    newNode.setNextLeafPageID(nextLeafPointer);
+
+    free(curPage);
+    free(newPage);
+    free(movedBlock);
+    free(middle);
+    return rc;
 }
 
 IX_ScanIterator::IX_ScanIterator() {
@@ -112,7 +531,7 @@ RC IXFileHandle::writeHiddenPage() {
 RC IXFileHandle::readHiddenPage() {
     void *data = malloc(PAGE_SIZE);
     if (data == nullptr) throw std::bad_alloc();
-    RC rc = readNodePage(data, 0);
+    readNodePage(data, 0);
     if (*((char *) data) != 'Y') {
         free(data);
         return 1;
@@ -424,6 +843,25 @@ KeyNodePage::KeyNodePage(void *pageData, const void *block, const KeyNumber &key
     memcpy((char *) pageData + offset, &slotNumber, sizeof(SlotNumber));
     offset -= sizeof(PageFreeSpace);
     memcpy((char *) pageData + offset, &freeSpace, sizeof(PageFreeSpace));
+}
+
+bool KeyNodePage::hasEnoughSpace(const Attribute &attribute, const void *key) {
+    // add slot size
+    int sizeNeeded = sizeof(PageOffset);
+
+    // add key size
+    if (attribute.type == TypeVarChar) {
+        int length;
+        memcpy(&length, (char *) key, sizeof(int));
+        sizeNeeded += length + sizeof(int);
+    } else {
+        sizeNeeded += sizeof(int);
+    }
+
+    // add Pointer size;
+    sizeNeeded += sizeof(PageNum);
+
+    return sizeNeeded <= freeSpace;
 }
 
 void KeyNodePage::addKey(const void *key, const AttrType &attrType, KeyNumber &keyIndex) {
@@ -785,4 +1223,23 @@ void LeafNodePage::setNextLeafPageID(const PageNum &nextPageID) {
     nextLeafPage = nextPageID;
     auto offset = PAGE_SIZE - infoSectionLength;
     memcpy((char *) pageData + offset, &nextPageID, sizeof(PageNum));
+}
+
+bool LeafNodePage::hasEnoughSpace(const Attribute &attribute, const void *key) {
+    // add slot size;
+    int sizeNeeded = sizeof(PageOffset);
+
+    // add key size
+    if (attribute.type == TypeVarChar) {
+        int length;
+        memcpy(&length, (char *) key, sizeof(int));
+        sizeNeeded += length + sizeof(int);
+    } else {
+        sizeNeeded += sizeof(int);
+    }
+
+    // add rid size
+    sizeNeeded += sizeof(RID);
+
+    return sizeNeeded <= freeSpace;
 }

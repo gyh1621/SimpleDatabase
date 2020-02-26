@@ -151,6 +151,8 @@ public:
     PageNum getLeftPointer(const KeyNumber &keyIndex);
     PageNum getRightPointer(const KeyNumber &keyIndex);
 
+    // check if current page has enough space for the new key
+    bool hasEnoughSpace(const Attribute &attribute, const void *key);
 };
 
 
@@ -214,6 +216,7 @@ public:
     /* Set next leaf page's pointer */
     void setNextLeafPageID(const PageNum &nextPageID);
 
+    bool hasEnoughSpace(const Attribute &attribute, const void *key);
 };
 
 #endif //CS222P_WINTER20_NODEPAGE_H
