@@ -68,7 +68,9 @@ RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
 
         if (node.hasEnoughSpace(attribute, key)) {
             rc = node.addKey(key, attribute.type, rid);
-            ixFileHandle.writeNodePage(page, cur);
+            if (rc == 0) {
+                ixFileHandle.writeNodePage(page, cur);
+            }
         } else {
             // split
             rc = splitLeafNode(ixFileHandle, attribute, cur, key, rid, returnedKey, returnedPointer);
@@ -119,7 +121,6 @@ RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
                 newRoot.addKey(returnedKey, attribute.type, keyIndex);
                 newRoot.setRightPointer(0, returnedPointer);
                 newRoot.setLeftPointer(0, cur);
-                ixFileHandle.writeNodePage(data, newRootid);
                 ixFileHandle.appendNodePage(data, newRootid);
                 ixFileHandle.setRootNodeID(newRootid);
                 free(data);
@@ -140,7 +141,9 @@ RC IndexManager::deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
     if (isLeafNode) { // reach leaf node, delete target rid
         LeafNodePage node(page, false);
         rc = node.deleteKey(key, attribute.type, rid);
-        ixFileHandle.writeNodePage(page, cur);
+        if (rc == 0) {
+            ixFileHandle.writeNodePage(page, cur);
+        }
     } else { // go through KeyNodes
         KeyNodePage node(page, false);
         PageNum targetNode = findNextNode(ixFileHandle, attribute, cur, key);
