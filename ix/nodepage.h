@@ -85,8 +85,6 @@ public:
 
     // check if current page has enough space for the new key
     bool hasEnoughSpace(const Attribute &attribute, const void *key);
-    // add a new entry into the page
-    void addNewEntry(const Attribute &attribute, const void *key, const PageNum &pageId);
 };
 
 
@@ -135,9 +133,6 @@ public:
     void setNextLeafPageID(const PageNum &nextPageID);
 
     bool hasEnoughSpace(const Attribute &attribute, const void *key);
-
-    // 0: success, other - rid exists
-    RC addNewEntry(const Attribute &attribute, const void *key, const RID &rid);
 };
 
 #endif //CS222P_WINTER20_NODEPAGE_H

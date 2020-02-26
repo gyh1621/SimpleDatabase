@@ -23,15 +23,15 @@ private:
 
     // delete given entry
     // 0 - success, 1 - entry not exist
-    RC deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid, PageNum cur);
+    RC deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid, const PageNum &cur);
 
     void printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, PageNum &pageId, int level) const;
 
     // leaf node split function
     // 0: success, 1: insert fail
-    RC splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, const void* key, const RID &rid, void *MiddleKey, PageNum &newNodeId);
+    RC splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, const void* key, const RID &rid, void *returnedKey, PageNum &returnedPointer);
     // key node split function
-    void splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, void *MiddleKey, PageNum &newNodeId);
+    void splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, void *returnedKey, PageNum &returnedPointer);
     // find which pointer contains the given key
     PageNum findNextNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum &cur, const void *key);
 
