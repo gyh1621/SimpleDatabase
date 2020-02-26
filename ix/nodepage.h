@@ -136,6 +136,10 @@ public:
     // not check whether has enough space
     // not assign pointers of the key, only add a key to the page
     // when key is varchar, "key" is a pointer to "length" + "string"
+    //
+    // if page's content is like below and now k is to be inserted, k < k0:
+    // p0, k0, p1, k1, p2, k2, ...
+    //    ↑ k will inserted here with a new pointer p
     // return 0 - success, other- fail
     void addKey(const void *key, const AttrType &attrType, KeyNumber &keyIndex);
 
@@ -192,7 +196,7 @@ public:
     // not check whether has enough space
     // when key is varchar, "key" is a pointer to "length" + "string"
     // if key already exists, the new rid will append to the existed rids of the same key
-    // return 0 - success, 1 - rid already exists
+    // return 0 - success, 1 - rid already exists (with same key)
     RC addKey(const void *key, const AttrType &attrType, const RID &rid);
 
     /* Get rids of a key */

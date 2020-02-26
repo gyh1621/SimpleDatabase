@@ -268,9 +268,9 @@ void NodePage::writeNthSlot(const KeyNumber &keyIndex, const PageOffset &keyOffs
 }
 
 bool NodePage::isLeafNode(void *data) {
-    bool leaf;
+    int leaf;
     memcpy(&leaf, (char *) data + PAGE_SIZE - sizeof(bool), sizeof(bool));
-    return leaf;
+    return leaf == int(true);
 }
 
 PageOffset NodePage::getKeyLength(const void *key, const AttrType &attrType) {
@@ -285,7 +285,11 @@ PageOffset NodePage::getKeyLength(const void *key, const AttrType &attrType) {
 }
 
 bool NodePage::findKey(const void *key, const AttrType &attrType, SlotNumber &keyIndex) {
-    SlotNumber l = 0, r = slotNumber - 1, mid;
+    if (slotNumber == 0) {
+        keyIndex = 0;
+        return false;
+    }
+    long l = 0, r = slotNumber - 1, mid;
     while (l <= r) {
         mid = (l + r) / 2;
         void *slotData = getNthKey(mid, attrType);
@@ -317,7 +321,15 @@ RC NodePage::compare(const void *data1, const void *data2, const AttrType &attrT
         int l1, l2;
         memcpy(&l1, data1, 4);
         memcpy(&l2, data2, 4);
-        return memcmp((char *) data1 + l1, (char *) data2 + l2, std::max(l1, l2));
+        if (l1 == l2) {
+            return memcmp((char *) data1 + 4, (char *) data2 + 4, l1);
+        } else if (l1 > l2) {
+            int res = memcmp((char *) data1 + 4, (char *) data2 + 4, l2);
+            return res == 0 ? 1 : res;
+        } else {
+            int res = memcmp((char *) data1 + 4, (char *) data2 + 4, l1);
+            return res == 0 ? -1 : res;
+        }
     } else {
         throw std::invalid_argument("invalid attr type");
     }
@@ -328,8 +340,8 @@ void NodePage::deleteKeysStartFrom(const KeyNumber &keyIndex) {
         throw std::invalid_argument("key index exceeds range.");
     }
     auto firstDeleteKeyOffset = getNthKeyOffset(keyIndex);
-    auto keysEndOffset = PAGE_SIZE - infoSectionLength - sizeof(PageOffset) * slotNumber - freeSpace;
-    freeSpace += (keysEndOffset - firstDeleteKeyOffset);
+    auto keysEndOffset = getFreeSpaceOffset();
+    freeSpace += (keysEndOffset - firstDeleteKeyOffset) + ((sizeof(PageOffset) * (slotNumber - keyIndex)));
     slotNumber = keyIndex;
 }
 
@@ -388,18 +400,21 @@ KeyNodePage::KeyNodePage(void *pageData, bool init): NodePage(pageData, init) {
 
 KeyNodePage::KeyNodePage(void *pageData, const void *block, const KeyNumber &keyNumbers, const PageOffset &dataLength,
                          const PageOffset &slotDataLength, const PageNum &prevKeyNodePageID): KeyNodePage(pageData, true) {
+    // init first pointer
+    int invalidP = -1;
+    memcpy(pageData, &invalidP, sizeof(PageNum));
     // copy data
-    memcpy((char *) pageData, block, dataLength);
+    memcpy((char *) pageData + sizeof(PageNum), block, dataLength);
     PageOffset slotDirOffset = PAGE_SIZE - infoSectionLength - slotDataLength;
     memcpy((char *) pageData + slotDirOffset, (char *) block + dataLength, slotDataLength);
 
     // assign info variables
     isLeaf = false;
     slotNumber = keyNumbers;
-    freeSpace = PAGE_SIZE - dataLength - slotDataLength - infoSectionLength;
+    freeSpace = PAGE_SIZE - dataLength - slotDataLength - infoSectionLength - sizeof(PageNum);
 
     // update slots offset
-    auto deviateOffset = getNthKeyOffset(0);
+    auto deviateOffset = getNthKeyOffset(0) - sizeof(PageNum);
     updateSlots(0, slotNumber - 1, deviateOffset, false);
 
     // write info variables to page data
@@ -423,7 +438,7 @@ void KeyNodePage::addKey(const void *key, const AttrType &attrType, KeyNumber &k
     PageOffset insertLength = keyLength + sizeof(PageNum);
     if (keyIndex < slotNumber) {  // insert into middle
         // new key's inserting offset
-        insertOffset = getNthSlotOffset(keyIndex);
+        insertOffset = getNthKeyOffset(keyIndex);
         // move existed keys
         auto toMoveStartOffset = getNthKeyOffset(keyIndex);
         auto toMoveEndOffset = getFreeSpaceOffset();
@@ -431,8 +446,12 @@ void KeyNodePage::addKey(const void *key, const AttrType &attrType, KeyNumber &k
         moveData(toMoveStartOffset, targetOffset, toMoveEndOffset - toMoveStartOffset);
         // move existed slots
         toMoveStartOffset = getNthSlotOffset(slotNumber - 1);
-        toMoveEndOffset = getNthSlotOffset(keyIndex - 1);
-        targetOffset = toMoveEndOffset - sizeof(PageOffset);
+        if (keyIndex == 0) {  // prevent number overflow, because KeyNumber is always positive
+            toMoveEndOffset = PAGE_SIZE - infoSectionLength;
+        } else {
+            toMoveEndOffset = getNthSlotOffset(keyIndex - 1);
+        }
+        targetOffset = toMoveStartOffset - sizeof(PageOffset);
         moveData(toMoveStartOffset, targetOffset, toMoveEndOffset - toMoveStartOffset);
     } else {  // append a key
         if (slotNumber == 0) {
@@ -457,8 +476,11 @@ void KeyNodePage::addKey(const void *key, const AttrType &attrType, KeyNumber &k
     int invalidP = -1;
     memcpy((char *) pageData + insertOffset + keyLength, &invalidP, sizeof(PageNum));
 
-    // update moved slots
-    updateSlots(keyIndex + 1, slotNumber - 1, insertLength, true);
+    // not appended key, need to update moved slots
+    if (keyIndex != slotNumber - 1) {
+        updateSlots(keyIndex + 1, slotNumber - 1, insertLength, true);
+    }
+
 }
 
 void KeyNodePage::setLeftPointer(const KeyNumber &keyIndex, const PageNum &pageID) {
@@ -507,7 +529,7 @@ PageNum KeyNodePage::getRightPointer(const KeyNumber &keyIndex) {
 // =====================================================================================
 
 LeafNodePage::LeafNodePage(void *pageData, bool init): NodePage(pageData, init) {
-    infoSectionLength -= sizeof(PageNum);
+    infoSectionLength += sizeof(PageNum);
     if (init) {
         isLeaf = true;
         // write to pageData
@@ -532,7 +554,7 @@ LeafNodePage::LeafNodePage(void *pageData, const void *block, const KeyNumber &k
 
     // assign info variables
     slotNumber = keyNumbers;
-    freeSpace = PAGE_SIZE - dataLength - slotDirOffset - infoSectionLength;
+    freeSpace = PAGE_SIZE - dataLength - slotDataLength - infoSectionLength;
     isLeaf = true;
 
     // update slots offset
@@ -638,7 +660,7 @@ RC LeafNodePage::addKey(const void *key, const AttrType &attrType, const RID &ri
         PageOffset insertLength = keyLength + sizeof(RID);
         if (keyIndex < slotNumber) {  // insert into existed keys
             // new key's inserting offset
-            insertOffset = getNthSlotOffset(keyIndex);
+            insertOffset = getNthKeyOffset(keyIndex);
             // move existed keys
             auto toMoveStartOffset = getNthKeyOffset(keyIndex);
             auto toMoveEndOffset = getFreeSpaceOffset();
@@ -646,8 +668,12 @@ RC LeafNodePage::addKey(const void *key, const AttrType &attrType, const RID &ri
             moveData(toMoveStartOffset, targetOffset, toMoveEndOffset - toMoveStartOffset);
             // move existed slots
             toMoveStartOffset = getNthSlotOffset(slotNumber - 1);
-            toMoveEndOffset = getNthSlotOffset(keyIndex - 1);
-            targetOffset = toMoveEndOffset - sizeof(PageOffset);
+            if (keyIndex == 0) {  // prevent number overflow, because KeyNumber is always positive
+                toMoveEndOffset = PAGE_SIZE - infoSectionLength;
+            } else {
+                toMoveEndOffset = getNthSlotOffset(keyIndex - 1);
+            }
+            targetOffset = toMoveStartOffset - sizeof(PageOffset);
             moveData(toMoveStartOffset, targetOffset, toMoveEndOffset - toMoveStartOffset);
         } else {  // append a key
             // new key's inserting offset
@@ -665,9 +691,13 @@ RC LeafNodePage::addKey(const void *key, const AttrType &attrType, const RID &ri
         memcpy((char *) pageData + insertOffset, key, keyLength);
         memcpy((char *) pageData + insertOffset + keyLength, &rid, sizeof(RID));
 
-        // update moved slots
-        updateSlots(keyIndex + 1, slotNumber - 1, insertLength, true);
+        // not appended key, need to update moved slots
+        if (keyIndex != slotNumber - 1) {
+            updateSlots(keyIndex + 1, slotNumber - 1, insertLength, true);
+        }
     }
+
+    return 0;
 }
 
 RC LeafNodePage::deleteKey(const void *key, const AttrType &attrType, const RID &rid) {
@@ -681,15 +711,21 @@ RC LeafNodePage::deleteKey(const void *key, const AttrType &attrType, const RID 
     if (ridOffset == 0) {  // rid not exist
         return 1;
     }
+    PageOffset ridsEndOffset;
+    if (keyIndex == slotNumber - 1) {
+        ridsEndOffset = getFreeSpaceOffset();
+    } else {
+        ridsEndOffset = getNthKeyOffset(keyIndex + 1);
+    }
 
     PageOffset keyOffset = getNthKeyOffset(keyIndex);
-    PageOffset keyLength = keyOffset + getKeyLength(key, attrType);
+    PageOffset keyLength = getKeyLength(key, attrType);
     PageOffset deleteLength;
 
     // key only has one rid
-    if (keyOffset + keyLength == ridOffset) {
+    if (keyOffset + keyLength + sizeof(RID) == ridsEndOffset) {
 
-        deleteLength = keyLength + sizeof(RID);
+        deleteLength = keyLength + sizeof(RID) + sizeof(PageOffset);
 
         // last key
         if (keyIndex == slotNumber - 1) {
@@ -712,7 +748,7 @@ RC LeafNodePage::deleteKey(const void *key, const AttrType &attrType, const RID 
             slotNumber--;
             // update slots
             // now keyIndex points to the first later slot
-            updateSlots(keyIndex, slotNumber - 1, deleteLength, false);
+            updateSlots(keyIndex, slotNumber - 1, keyLength + sizeof(RID), false);
         }
 
     }
@@ -737,6 +773,7 @@ RC LeafNodePage::deleteKey(const void *key, const AttrType &attrType, const RID 
         }
     }
 
+    return 0;
 }
 
 RC LeafNodePage::getNextLeafPageID(PageNum &nextPageID) {
