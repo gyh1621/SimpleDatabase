@@ -589,3 +589,22 @@ RC RM_ScanIterator::close() {
     rbfm_ScanIterator.close();
     return RecordBasedFileManager::instance().closeFile(fileHandle);
 }
+
+// QE IX related
+RC RelationManager::createIndex(const std::string &tableName, const std::string &attributeName) {
+    return -1;
+}
+
+RC RelationManager::destroyIndex(const std::string &tableName, const std::string &attributeName) {
+    return -1;
+}
+
+RC RelationManager::indexScan(const std::string &tableName,
+                              const std::string &attributeName,
+                              const void *lowKey,
+                              const void *highKey,
+                              bool lowKeyInclusive,
+                              bool highKeyInclusive,
+                              RM_IndexScanIterator &rm_IndexScanIterator) {
+    return -1;
+}

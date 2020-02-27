@@ -34,6 +34,17 @@ public:
     RC close();
 };
 
+// RM_IndexScanIterator is an iterator to go through index entries
+class RM_IndexScanIterator {
+public:
+    RM_IndexScanIterator() {};    // Constructor
+    ~RM_IndexScanIterator() {};    // Destructor
+
+    // "key" follows the same format as in IndexManager::insertEntry()
+    RC getNextEntry(RID &rid, void *key) { return RM_EOF; };    // Get next matching entry
+    RC close() { return -1; };                        // Terminate index scan
+};
+
 // Relation Manager
 class RelationManager {
 private:
@@ -110,10 +121,10 @@ public:
             const std::string &conditionAttribute,
             CompOp compOp,                  // comparison type such as "<" and "="
             const void *value,                    // used in the comparison
-            const std::vector<std::string> &attributeNames, // a list of projected attributes
+            const std::vector <std::string> &attributeNames, // a list of projected attributes
             RM_ScanIterator &rm_ScanIterator);
 
-// Extra credit work (10 points)
+    // Extra credit work (10 points)
     RC addAttribute(const std::string &tableName, const Attribute &attr);
 
     RC dropAttribute(const std::string &tableName, const std::string &attributeName);
@@ -121,12 +132,28 @@ public:
     // print sys table
     void printSysTable(const std::string &tableName);
 
+    // QE IX related
+    RC createIndex(const std::string &tableName, const std::string &attributeName);
+
+    RC destroyIndex(const std::string &tableName, const std::string &attributeName);
+
+    // indexScan returns an iterator to allow the caller to go through qualified entries in index
+    RC indexScan(const std::string &tableName,
+                 const std::string &attributeName,
+                 const void *lowKey,
+                 const void *highKey,
+                 bool lowKeyInclusive,
+                 bool highKeyInclusive,
+                 RM_IndexScanIterator &rm_IndexScanIterator);
+
 protected:
     RelationManager();                                                  // Prevent construction
     ~RelationManager();                                                 // Prevent unwanted destruction
     RelationManager(const RelationManager &);                           // Prevent construction by copying
     RelationManager &operator=(const RelationManager &);                // Prevent assignment
 
+private:
+    static RelationManager *_relation_manager;
 };
 
 #endif
