@@ -495,8 +495,7 @@ RC IndexManager::splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attr
 
 IX_ScanIterator::IX_ScanIterator() {
     currentPage = NodePage::NotExistPointer;
-    currentPageData = malloc(PAGE_SIZE);
-    if (currentPageData == nullptr) throw std::bad_alloc();
+    currentPageData = nullptr;
     currentKey = nullptr;
     lastRIDIndex = NotStartRIDIndex;
     currentKeyIndex = NotStartKeyIndex;
@@ -518,6 +517,8 @@ void IX_ScanIterator::setup(IXFileHandle &ixFileHandle,
         std::cerr << "last scan not close!" << std::endl;
         throw std::bad_function_call();
     }
+    currentPageData = malloc(PAGE_SIZE);
+    if (currentPageData == nullptr) throw std::bad_alloc();
     this->ixFileHandle = &ixFileHandle;
     if (lowKey != nullptr) {
         PageOffset keyLength = NodePage::getKeyLength(lowKey, attribute.type);
