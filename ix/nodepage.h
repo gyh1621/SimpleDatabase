@@ -21,7 +21,12 @@ class NodePage {
     * └────┴───────────────────┴────────────────┴─────────────────┴────────────────────┘
     */
 
+public:
+    // pages are supposed not reach max number
+    static const PageNum NotExistPointer = std::numeric_limits<PageNum>::max();
+
 protected:
+
     PageFreeSpace freeSpace;
     SlotNumber slotNumber;
     bool isLeaf;
@@ -125,8 +130,7 @@ public:
 
     // used in spliting, *block comes from "copyToEnd"
     KeyNodePage(void *pageData, const void* block, const KeyNumber &keyNumbers,
-                const PageOffset &dataLength, const PageOffset &slotDataLength,
-                const PageNum &prevKeyNodePageID);
+                const PageOffset &dataLength, const PageOffset &slotDataLength);
 
     KeyNodePage(const KeyNodePage&) = delete;                             // copy constructor, implement when needed
     KeyNodePage(KeyNodePage&&) = delete;                                  // move constructor, implement when needed
@@ -209,6 +213,15 @@ public:
     // if key already exists, the new rid will append to the existed rids of the same key
     // return 0 - success, 1 - rid already exists (with same key)
     RC addKey(const void *key, const AttrType &attrType, const RID &rid);
+
+    /* Get size of rids of a key */
+    PageOffset getRIDSize(const KeyNumber &keyIndex, const AttrType &attrType);
+
+    /* Get number of rid of a key */
+    KeyNumber getRIDNumber(const KeyNumber &keyIndex, const AttrType &attrType);
+
+    /* Get a rid of a key */
+    RID *getRID(const KeyNumber &keyIndex, const KeyNumber &ridIndex, const AttrType &attrType);
 
     /* Get rids of a key */
     void *getRIDs(const KeyNumber &keyIndex, PageOffset &dataLength, const AttrType &attrType);

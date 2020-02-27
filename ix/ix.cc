@@ -87,8 +87,9 @@ RC IndexManager::scan(IXFileHandle &ixFileHandle,
                       bool lowKeyInclusive,
                       bool highKeyInclusive,
                       IX_ScanIterator &ix_ScanIterator) {
-
-    return -1;
+    if (!ixFileHandle.isOccupied()) return -1;
+    ix_ScanIterator.setup(ixFileHandle, attribute, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
+    return 0;
 }
 
 void IndexManager::printBtree(IXFileHandle &ixFileHandle, const Attribute &attribute) const {
@@ -349,7 +350,7 @@ void IndexManager::splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &att
     PageOffset dataLength, slotDataLength;
     KeyNumber keyNumber;
     void* movedBlock = curNode.copyToEnd(splitPosition, dataLength, slotDataLength, keyNumber);
-    KeyNodePage newNode(newPage, movedBlock, keyNumber, dataLength, slotDataLength, id);
+    KeyNodePage newNode(newPage, movedBlock, keyNumber, dataLength, slotDataLength);
 
 //    void* removedKey = malloc(PAGE_SIZE);
 //    void* tempKey;
@@ -489,17 +490,202 @@ RC IndexManager::splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attr
 }
 
 IX_ScanIterator::IX_ScanIterator() {
+    currentPage = NodePage::NotExistPointer;
+    currentPageData = malloc(PAGE_SIZE);
+    if (currentPageData == nullptr) throw std::bad_alloc();
+    currentKey = nullptr;
+    lastRIDIndex = NotStartRIDIndex;
+    currentKeyIndex = NotStartKeyIndex;
+    currentKeyRIDNumber = 0;
+    lowKey = highKey = nullptr;
+    ixFileHandle = nullptr;
 }
 
 IX_ScanIterator::~IX_ScanIterator() {
 }
 
+void IX_ScanIterator::setup(IXFileHandle &ixFileHandle,
+           const Attribute &attribute,
+           const void* lowKey, const void* highKey,
+           const bool &lowKeyInclusive, const bool &highKeyInclusive) {
+    if (this->ixFileHandle != nullptr || this->currentKey != nullptr
+        || this->lowKey != nullptr || this->highKey != nullptr) {
+        // last scan not close
+        std::cerr << "last scan not close!" << std::endl;
+        throw std::bad_function_call();
+    }
+    this->ixFileHandle = &ixFileHandle;
+    if (lowKey != nullptr) {
+        PageOffset keyLength = NodePage::getKeyLength(lowKey, attribute.type);
+        this->lowKey = malloc(keyLength);
+        if (this->lowKey == nullptr) throw std::bad_alloc();
+        memcpy(this->lowKey, lowKey, keyLength);
+    }
+    if (highKey != nullptr) {
+        PageOffset keyLength = NodePage::getKeyLength(highKey, attribute.type);
+        this->highKey = malloc(keyLength);
+        if (this->highKey == nullptr) throw std::bad_alloc();
+        memcpy(this->highKey, highKey, keyLength);
+    }
+    this->lowKeyInclusive = lowKeyInclusive;
+    this->highKeyInclusive = highKeyInclusive;
+
+    // point currentKey to the first key in leftmost leaf node
+    currentPage = ixFileHandle.getRootNodeID();
+    if (currentPage == IXFileHandle::NotExistRootPageID) {
+        // no page in current index
+        currentKey = nullptr;
+    } else {
+        // reach left most leaf page
+        while (true) {
+            ixFileHandle.readNodePage(currentPageData, currentPage);
+            if (NodePage::isLeafNode(currentPageData)) {
+                break;
+            } else {
+                KeyNodePage nodePage(currentPageData, false);
+                currentPage = nodePage.getLeftPointer(0);
+                assert(currentPage != NodePage::NotExistPointer);
+            }
+        }
+        // find the first satisfied key
+        findNextKey();
+    }
+}
+
+bool IX_ScanIterator::findNextKey() {
+    while (true) {
+        assert(NodePage::isLeafNode(currentPageData));
+        LeafNodePage nodePage(currentPageData, false);
+
+        // empty leaf node or reach current leaf's end, read next leaf node
+        if (nodePage.getSlotNumber() == 0 ||
+            (currentKeyIndex != NotStartKeyIndex
+             && currentKeyIndex >= nodePage.getSlotNumber() - 1 )) {
+            nodePage.getNextLeafPageID(currentPage);
+            if (currentPage == NodePage::NotExistPointer) {
+                // iterated whole file, no key in current index
+                currentKey = nullptr;
+                break;
+            } else {
+                // read next leaf node data
+                ixFileHandle->readNodePage(currentPageData, currentPage);
+                currentKeyIndex = NotStartKeyIndex;
+                lastRIDIndex = NotStartRIDIndex;
+            }
+        }
+
+        // read current leaf's next key
+        else {
+            if (currentKeyIndex == NotStartKeyIndex) {
+                currentKeyIndex = 0;
+            } else {
+                currentKeyIndex++;
+            }
+            currentKey = nodePage.getNthKey(currentKeyIndex, attribute.type);
+            if (!currentKeySatisfied()) {
+                free(currentKey);
+                currentKey = nullptr;
+            } else {
+                // find satisfied key
+                currentKeyRIDNumber = nodePage.getRIDNumber(currentKeyIndex, attribute.type);
+                lastRIDIndex = NotStartRIDIndex;
+                break;
+            }
+        }
+    }
+    return currentKey == nullptr;
+}
+
+bool IX_ScanIterator::currentKeySatisfied() {
+    assert(currentKey != nullptr);
+    if (lowKey != nullptr) {
+        RC res = NodePage::compare(lowKey, currentKey, attribute.type);
+        if (res > 0) return false;
+        if (res == 0 && !lowKeyInclusive) return false;
+    }
+    if (highKey != nullptr) {
+        RC res = NodePage::compare(highKey, currentKey, attribute.type);
+        if (res < 0) return false;
+        if (res == 0 && !highKeyInclusive) return false;
+    }
+    return true;
+}
+
 RC IX_ScanIterator::getNextEntry(RID &rid, void *key) {
-    return -1;
+    if (currentKey == nullptr) {
+        return IX_EOF;
+    }
+
+    LeafNodePage nodePage(currentPageData, false);
+    KeyNumber nextRIDIndex;
+
+    // check if current key still exists
+    if (currentKeyIndex == nodePage.getSlotNumber()) {
+        // key has been deleted
+        free(currentKey);
+        findNextKey();
+        if (currentKey == nullptr) {
+            return IX_EOF;
+        }
+    } else {
+        void *tmpKey = nodePage.getNthKey(currentKeyIndex, attribute.type);
+        RC res = NodePage::compare(tmpKey, currentKey, attribute.type);
+        free(tmpKey);
+        if (res != 0) {
+            // key has been deleted
+            free(currentKey);
+            findNextKey();
+            if (currentKey == nullptr) {
+                return IX_EOF;
+            }
+        }
+    }
+
+    // check if last rid has been deleted
+    KeyNumber ridNumber = nodePage.getRIDNumber(currentKeyIndex, attribute.type);
+    if (ridNumber != currentKeyRIDNumber) {
+        nextRIDIndex = lastRIDIndex;
+        currentKeyRIDNumber = ridNumber;
+    } else {
+        nextRIDIndex = lastRIDIndex + 1;
+    }
+
+    // check if current key has unread rid
+    if (nextRIDIndex == currentKeyRIDNumber) {
+        free(currentKey);
+        findNextKey();
+        if (currentKey == nullptr) {
+            return IX_EOF;
+        }
+        nextRIDIndex = 0;
+    }
+
+    PageOffset keyLength = NodePage::getKeyLength(currentKey, attribute.type);
+    memcpy(key, currentKey, keyLength);
+    RID *targetRID = nodePage.getRID(currentKeyIndex, nextRIDIndex, attribute.type);
+    rid.pageNum = targetRID->pageNum;
+    rid.slotNum = targetRID->slotNum;
+    free(targetRID);
+    lastRIDIndex = nextRIDIndex;
+
+    return 0;
 }
 
 RC IX_ScanIterator::close() {
-    return -1;
+    if (currentPageData != nullptr) free(currentPageData);
+    currentPageData = nullptr;
+    if (currentKey != nullptr) free(currentKey);
+    currentKey = nullptr;
+    if (lowKey != nullptr) free(lowKey);
+    lowKey = nullptr;
+    if (highKey != nullptr) free(highKey);
+    highKey = nullptr;
+    currentKeyRIDNumber = 0;
+    lastRIDIndex = NotStartRIDIndex;
+    currentKeyIndex = NotStartKeyIndex;
+    ixFileHandle = nullptr;
+    currentPage = NodePage::NotExistPointer;
+    return 0;
 }
 
 IXFileHandle::IXFileHandle() {
@@ -518,7 +704,6 @@ RC IXFileHandle::writeHiddenPage() {
     memset(data, 0, PAGE_SIZE);
     *((char *) data) = 'Y';
     PageOffset offset = sizeof(char);
-    ixWritePageCounter++;  // count this write
     memcpy((char *) data + offset, &ixReadPageCounter, sizeof(Counter));
     offset += sizeof(Counter);
     memcpy((char *) data + offset, &ixWritePageCounter, sizeof(Counter));
@@ -552,7 +737,6 @@ RC IXFileHandle::readHiddenPage() {
     offset += sizeof(PageNum);
     memcpy(&rootPageID, (char *) data + offset, sizeof(PageNum));
     free(data);
-    ixReadPageCounter++;  // count this read
     return 0;
 }
 
@@ -590,10 +774,15 @@ bool IXFileHandle::isOccupied() {
 void IXFileHandle::setHandle(std::fstream *f) {
     handle = f;
     // detect if this file was initialized
-    readHiddenPage();
+    if (readHiddenPage() != 0) {
+        writeHiddenPage();
+    } else {
+        ixReadPageCounter++;  // count this read
+    }
 }
 
 void IXFileHandle::releaseHandle() {
+    ixWritePageCounter++;  // count this write
     writeHiddenPage();
     handle->close();
     delete(handle);
@@ -832,10 +1021,9 @@ KeyNodePage::KeyNodePage(void *pageData, bool init): NodePage(pageData, init) {
 }
 
 KeyNodePage::KeyNodePage(void *pageData, const void *block, const KeyNumber &keyNumbers, const PageOffset &dataLength,
-                         const PageOffset &slotDataLength, const PageNum &prevKeyNodePageID): KeyNodePage(pageData, true) {
+                         const PageOffset &slotDataLength): KeyNodePage(pageData, true) {
     // init first pointer
-    int invalidP = -1;
-    memcpy(pageData, &invalidP, sizeof(PageNum));
+    memcpy(pageData, &NotExistPointer, sizeof(PageNum));
     // copy data
     memcpy((char *) pageData + sizeof(PageNum), block, dataLength);
     PageOffset slotDirOffset = PAGE_SIZE - infoSectionLength - slotDataLength;
@@ -851,12 +1039,7 @@ KeyNodePage::KeyNodePage(void *pageData, const void *block, const KeyNumber &key
     updateSlots(0, slotNumber - 1, deviateOffset, false);
 
     // write info variables to page data
-    PageOffset offset = PAGE_SIZE - sizeof(bool);
-    memcpy((char *) pageData + offset, &isLeaf, sizeof(bool));
-    offset -= sizeof(SlotNumber);
-    memcpy((char *) pageData + offset, &slotNumber, sizeof(SlotNumber));
-    offset -= sizeof(PageFreeSpace);
-    memcpy((char *) pageData + offset, &freeSpace, sizeof(PageFreeSpace));
+    writeInfoSection();
 }
 
 bool KeyNodePage::hasEnoughSpace(const Attribute &attribute, const void *key) {
@@ -908,8 +1091,7 @@ void KeyNodePage::addKey(const void *key, const AttrType &attrType, KeyNumber &k
     } else {  // append a key
         if (slotNumber == 0) {
             // append the first left pointer
-            int invalidP = -1;
-            memcpy(pageData, &invalidP, sizeof(PageNum));
+            memcpy(pageData, &NotExistPointer, sizeof(PageNum));
             freeSpace -= sizeof(PageNum);
         }
         // new key's inserting offset
@@ -925,8 +1107,7 @@ void KeyNodePage::addKey(const void *key, const AttrType &attrType, KeyNumber &k
 
     // write key and new pointer
     memcpy((char *) pageData + insertOffset, key, keyLength);
-    int invalidP = -1;
-    memcpy((char *) pageData + insertOffset + keyLength, &invalidP, sizeof(PageNum));
+    memcpy((char *) pageData + insertOffset + keyLength, &NotExistPointer, sizeof(PageNum));
 
     // not appended key, need to update moved slots
     if (keyIndex != slotNumber - 1) {
@@ -986,6 +1167,7 @@ LeafNodePage::LeafNodePage(void *pageData, bool init): NodePage(pageData, init) 
     infoSectionLength += sizeof(PageNum);
     if (init) {
         isLeaf = true;
+        nextLeafPage = NotExistPointer;
         // update free space
         freeSpace = PAGE_SIZE - infoSectionLength;
         // write to pageData
@@ -1014,7 +1196,6 @@ void LeafNodePage::writeInfoSection() {
     offset -= sizeof(PageFreeSpace);
     memcpy((char *) pageData + offset, &freeSpace, sizeof(PageFreeSpace));
     offset -= sizeof(PageNum);
-    nextLeafPage = 0;
     memcpy((char *) pageData + offset, &nextLeafPage, sizeof(PageNum));
 }
 
@@ -1029,21 +1210,14 @@ LeafNodePage::LeafNodePage(void *pageData, const void *block, const KeyNumber &k
     slotNumber = keyNumbers;
     freeSpace = PAGE_SIZE - dataLength - slotDataLength - infoSectionLength;
     isLeaf = true;
+    nextLeafPage = NotExistPointer;
 
     // update slots offset
     auto deviateOffset = getNthKeyOffset(0);
     updateSlots(0, slotNumber - 1, deviateOffset, false);
 
     // write info variables to page data
-    PageOffset offset = PAGE_SIZE - sizeof(bool);
-    memcpy((char *) pageData + offset, &isLeaf, sizeof(bool));
-    offset -= sizeof(SlotNumber);
-    memcpy((char *) pageData + offset, &slotNumber, sizeof(SlotNumber));
-    offset -= sizeof(PageFreeSpace);
-    memcpy((char *) pageData + offset, &freeSpace, sizeof(PageFreeSpace));
-    offset -= sizeof(PageNum);
-    int invalidP = -1;
-    memcpy((char *) pageData + offset, &invalidP, sizeof(PageNum));
+    writeInfoSection();
 }
 
 PageOffset LeafNodePage::findRid(const KeyNumber &keyIndex, const AttrType &attrType, const RID &rid) {
@@ -1072,6 +1246,56 @@ PageOffset LeafNodePage::findRid(const KeyNumber &keyIndex, const AttrType &attr
 
     // not exist
     return 0;
+}
+
+PageOffset LeafNodePage::getRIDSize(const KeyNumber &keyIndex, const AttrType &attrType) {
+    if (keyIndex >= slotNumber) {
+        throw std::invalid_argument("key index exceeds range.");
+    }
+    void *key = getNthKey(keyIndex, attrType);
+    PageOffset keyLength = getKeyLength(key, attrType);
+    PageOffset ridsStartOffset = getNthKeyOffset(keyIndex) + keyLength;
+    PageOffset ridsEndOffset;
+    if (keyIndex == slotNumber - 1) {
+        ridsEndOffset = getFreeSpaceOffset();
+    } else {
+        ridsEndOffset = getNthKeyOffset(keyIndex + 1);
+    }
+    free(key);
+    return ridsEndOffset - ridsStartOffset;
+}
+
+KeyNumber LeafNodePage::getRIDNumber(const KeyNumber &keyIndex, const AttrType &attrType) {
+    if (keyIndex >= slotNumber) {
+        throw std::invalid_argument("key index exceeds range.");
+    }
+    PageOffset ridSize = getRIDSize(keyIndex, attrType);
+    assert(ridSize % sizeof(RID) == 0);
+    return ridSize / sizeof(RID);
+}
+
+RID *LeafNodePage::getRID(const KeyNumber &keyIndex, const KeyNumber &ridIndex, const AttrType &attrType) {
+    if (keyIndex >= slotNumber) {
+        throw std::invalid_argument("key index exceeds range.");
+    }
+    void *key = getNthKey(keyIndex, attrType);
+    PageOffset keyLength = getKeyLength(key, attrType);
+    free(key);
+    PageOffset ridsStartOffset = getNthKeyOffset(keyIndex) + keyLength;
+    PageOffset ridsEndOffset;
+    if (keyIndex == slotNumber - 1) {
+        ridsEndOffset = getFreeSpaceOffset();
+    } else {
+        ridsEndOffset = getNthKeyOffset(keyIndex + 1);
+    }
+    PageOffset ridOffset = ridsStartOffset + sizeof(RID) * ridIndex;
+    if (ridOffset >= ridsEndOffset) {
+        throw std::invalid_argument("rid index exceeds range.");
+    }
+    void *rid = malloc(sizeof(RID));
+    if (rid == nullptr) throw std::bad_alloc();
+    memcpy(rid, (char *) pageData + ridOffset, sizeof(RID));
+    return (RID *) rid;
 }
 
 void * LeafNodePage::getRIDs(const KeyNumber &keyIndex, PageOffset &dataLength, const AttrType &attrType) {
@@ -1254,8 +1478,9 @@ RC LeafNodePage::deleteKey(const void *key, const AttrType &attrType, const RID 
 }
 
 RC LeafNodePage::getNextLeafPageID(PageNum &nextPageID) {
-    if (nextLeafPage == 0) return -1;
-    return nextLeafPage;
+    nextPageID = nextLeafPage;
+    if (nextLeafPage == NotExistPointer) return -1;
+    return 0;
 }
 
 void LeafNodePage::setNextLeafPageID(const PageNum &nextPageID) {

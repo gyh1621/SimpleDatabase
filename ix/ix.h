@@ -92,12 +92,42 @@ protected:
 };
 
 class IX_ScanIterator {
+
+    static const KeyNumber NotStartRIDIndex = std::numeric_limits<KeyNumber>::max();
+    static const KeyNumber NotStartKeyIndex = std::numeric_limits<KeyNumber>::max();
+
+private:
+    PageNum currentPage;
+    void *currentPageData;
+    void *currentKey;
+    KeyNumber currentKeyIndex;
+    KeyNumber lastRIDIndex;
+    KeyNumber currentKeyRIDNumber;
+    Attribute attribute;
+    void *lowKey, *highKey;
+    // passed, no need to release
+    IXFileHandle *ixFileHandle;
+    bool lowKeyInclusive, highKeyInclusive;
+
+    /* find next existed key */
+    // currentPageData need to be assigned first
+    bool findNextKey();
+
+    /* compare current key with lowKey and highKey */
+    bool currentKeySatisfied();
+
 public:
     // Constructor
     IX_ScanIterator();
 
     // Destructor
     ~IX_ScanIterator();
+
+    // setup for a new scan
+    void setup(IXFileHandle &ixFileHandle,
+               const Attribute &attribute,
+               const void* lowKey, const void* highKey,
+               const bool &lowKeyInclusive, const bool &highKeyInclusive);
 
     // Get next matching entry
     RC getNextEntry(RID &rid, void *key);

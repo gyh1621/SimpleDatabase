@@ -16,9 +16,10 @@ RC customTestCase_1(const std::string &indexFileName) {
     IXFileHandle ixFileHandle;
     openFileShouldNotFail(indexFileName, ixFileHandle);
 
-    // collect counters, r/w/a should be 1/0/0, one read is trying to read the hidden page
+    // collect counters, r/w/a should be 1/1/0
+    // one read is trying to read the hidden page and one write of writing hidden file
     ixFileHandle.collectCounterValues(readCounter, writeCounter, appendCounter);
-    if (!(readCounter == 1 && writeCounter == 0 && appendCounter == 0)) {
+    if (!(readCounter == 1 && writeCounter == 1 && appendCounter == 0)) {
         std::cout << "counters after opening a newly created file are not correct, r/w/a: "
                   << readCounter << " " << writeCounter << " " << appendCounter;
         return 1;
@@ -28,10 +29,10 @@ RC customTestCase_1(const std::string &indexFileName) {
     closeFileShouldNotFail(indexFileName, ixFileHandle);
     openFileShouldNotFail(indexFileName, ixFileHandle);
 
-    // collect counters, r/w/a should be 2/1/0
+    // collect counters, r/w/a should be 2/2/0
     // one extra of reading hidden page when opening, one extra write should be writing hidden page when closing
     ixFileHandle.collectCounterValues(readCounter, writeCounter, appendCounter);
-    if (!(readCounter == 2 && writeCounter == 1 && appendCounter == 0)) {
+    if (!(readCounter == 2 && writeCounter == 2 && appendCounter == 0)) {
         std::cout << "counters after reopening file are not correct, r/w/a: "
                   << readCounter << " " << writeCounter << " " << appendCounter;
         return 1;
@@ -67,9 +68,9 @@ RC customTestCase_1(const std::string &indexFileName) {
     closeFileShouldNotFail(indexFileName, ixFileHandle);
     openFileShouldNotFail(indexFileName, ixFileHandle);
 
-    // collect counters, r/w/a should be 3/2+writePageNum/1000
+    // collect counters, r/w/a should be 3/3+writePageNum/1000
     ixFileHandle.collectCounterValues(readCounter, writeCounter, appendCounter);
-    if (!(readCounter == 3 && writeCounter == 2+writePageNum && appendCounter == 1000)) {
+    if (!(readCounter == 3 && writeCounter == 3+writePageNum && appendCounter == 1000)) {
         std::cout << "counters after appending are not correct, r/w/a: "
                   << readCounter << " " << writeCounter << " " << appendCounter;
         return 1;
