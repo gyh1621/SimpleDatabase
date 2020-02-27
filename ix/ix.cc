@@ -517,6 +517,7 @@ void IX_ScanIterator::setup(IXFileHandle &ixFileHandle,
         std::cerr << "last scan not close!" << std::endl;
         throw std::bad_function_call();
     }
+    this->attribute = attribute;
     currentPageData = malloc(PAGE_SIZE);
     if (currentPageData == nullptr) throw std::bad_alloc();
     this->ixFileHandle = &ixFileHandle;
