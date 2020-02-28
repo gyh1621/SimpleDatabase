@@ -128,7 +128,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
 
                 KeyNumber keyIndex;
                 newRoot.addKey(returnedKey, attribute.type, keyIndex);
-                newRoot.setRightPointer(0, returnedPointer);
+                newRoot.setRightPointer(0, returnedPointer, attribute.type);
                 newRoot.setLeftPointer(0, cur);
                 ixFileHandle.appendNodePage(data, newRootid);
                 ixFileHandle.setRootNodeID(newRootid);
@@ -148,7 +148,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
         if (node.hasEnoughSpace(attribute, returnedKey)) {
             KeyNumber keyIndex;
             node.addKey(returnedKey, attribute.type, keyIndex);
-            node.setRightPointer(keyIndex, returnedPointer);
+            node.setRightPointer(keyIndex, returnedPointer, attribute.type);
             hasReturn = 0;
             memcpy((char *) returnedKey + PAGE_SIZE - sizeof(int), &hasReturn, sizeof(int));
             ixFileHandle.writeNodePage(node.getPageData(), cur);
@@ -164,7 +164,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
 
                 KeyNumber keyIndex;
                 newRoot.addKey(returnedKey, attribute.type, keyIndex);
-                newRoot.setRightPointer(0, returnedPointer);
+                newRoot.setRightPointer(0, returnedPointer, attribute.type);
                 newRoot.setLeftPointer(0, cur);
                 ixFileHandle.appendNodePage(data, newRootid);
                 ixFileHandle.setRootNodeID(newRootid);
@@ -228,9 +228,6 @@ void IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attri
             free(tempKey);
             free(tempRID);
         }
-        PageNum next;
-        node.getNextLeafPageID(next);
-        std::cout << pageId << " " << next;
         std::cout << "]}";
     } else { // print keyNode
         printSpace(level);
@@ -265,7 +262,7 @@ void IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attri
         }
 
         for (int i = 0; i < slotNumber; i++) {
-            pageNum = node.getRightPointer(i);
+            pageNum = node.getRightPointer(i, attribute.type);
             printBTree(ixFileHandle, attribute, pageNum, level + 1);
             if (i < slotNumber - 1) {
                 std::cout << "," << std::endl;
@@ -327,7 +324,7 @@ PageNum IndexManager::findNextNode(IXFileHandle &ixFileHandle, const Attribute &
     for (int i = 0; i < curNode.getSlotNumber(); i++) {
         tempKey = curNode.getNthKey(i, attribute.type);
         if (curNode.compare(key, tempKey, attribute.type) >= 0) {
-            target = curNode.getRightPointer(i);
+            target = curNode.getRightPointer(i, attribute.type);
         } else { // target found stop
             free(tempKey);
             break;
@@ -375,7 +372,8 @@ void IndexManager::splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &att
 //    }
 
     // set left most pointer of new Page
-    newNode.setLeftPointer(0, curNode.getLeftPointer(splitPosition));
+    PageNum left = curNode.getLeftPointer(splitPosition);
+    newNode.setLeftPointer(0, left);
 
     // get middleKey
     void* middle;
@@ -387,10 +385,10 @@ void IndexManager::splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &att
     KeyNumber keyIndex;
     if (curNode.compare(returnedKey, middle, attribute.type) < 0) {
         curNode.addKey(returnedKey, attribute.type, keyIndex);
-        curNode.setRightPointer(keyIndex, returnedPointer);
+        curNode.setRightPointer(keyIndex, returnedPointer, attribute.type);
     } else {
         newNode.addKey(returnedKey, attribute.type, keyIndex);
-        newNode.setRightPointer(keyIndex, returnedPointer);
+        newNode.setRightPointer(keyIndex, returnedPointer, attribute.type);
     }
 
     // set middleKey
@@ -1134,13 +1132,15 @@ void KeyNodePage::setLeftPointer(const KeyNumber &keyIndex, const PageNum &pageI
     memcpy((char *) pageData + pointerOffset, &pageID, sizeof(PageNum));
 }
 
-void KeyNodePage::setRightPointer(const KeyNumber &keyIndex, const PageNum &pageID) {
+void KeyNodePage::setRightPointer(const KeyNumber &keyIndex, const PageNum &pageID, const AttrType &attrType) {
     if (keyIndex >= slotNumber) {
         throw std::invalid_argument("key index exceeds rage");
     }
     auto keyOffset = getNthKeyOffset(keyIndex);
-    auto pointerOffset = keyOffset + sizeof(PageNum);
+    void* key = getNthKey(keyIndex, attrType);
+    auto pointerOffset = keyOffset + getKeyLength(key, attrType);
     memcpy((char *) pageData + pointerOffset, &pageID, sizeof(PageNum));
+    free(key);
 }
 
 PageNum KeyNodePage::getLeftPointer(const KeyNumber &keyIndex) {
@@ -1154,14 +1154,16 @@ PageNum KeyNodePage::getLeftPointer(const KeyNumber &keyIndex) {
     return pointer;
 }
 
-PageNum KeyNodePage::getRightPointer(const KeyNumber &keyIndex) {
+PageNum KeyNodePage::getRightPointer(const KeyNumber &keyIndex, const AttrType &attrType) {
     if (keyIndex >= slotNumber) {
         throw std::invalid_argument("key index exceeds rage");
     }
     auto keyOffset = getNthKeyOffset(keyIndex);
-    auto pointerOffset = keyOffset + sizeof(PageNum);
+    void* key = getNthKey(keyIndex, attrType);
+    auto pointerOffset = keyOffset + getKeyLength(key, attrType);
     PageNum pointer;
     memcpy(&pointer, (char *) pageData + pointerOffset, sizeof(PageNum));
+    free(key);
     return pointer;
 }
 

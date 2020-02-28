@@ -155,11 +155,11 @@ public:
 
     /* Set pointers of a key */
     void setLeftPointer(const KeyNumber &keyIndex, const PageNum &pageID);
-    void setRightPointer(const KeyNumber &keyIndex, const PageNum &pageID);
+    void setRightPointer(const KeyNumber &keyIndex, const PageNum &pageID, const AttrType &attrType);
 
     /* Get pointers of a key */
     PageNum getLeftPointer(const KeyNumber &keyIndex);
-    PageNum getRightPointer(const KeyNumber &keyIndex);
+    PageNum getRightPointer(const KeyNumber &keyIndex, const AttrType &attrType);
 
     // check if current page has enough space for the new key
     bool hasEnoughSpace(const Attribute &attribute, const void *key);
