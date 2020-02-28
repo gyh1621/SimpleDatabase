@@ -1,37 +1,71 @@
 1. Basic information
-Team #:
-Github Repo Link:
-Student 1 UCI NetID:
-Student 1 Name:
-Student 2 UCI NetID (if applicable):
-Student 2 Name (if applicable):
+Team #: 14
+Github Repo Link: https://github.com/UCI-Chenli-teaching/cs222p-winter20-team-14
+Student 1 UCI NetID: yuhangg4
+Student 1 Name: Yuhang Guo
+Student 2 UCI NetID: lijies2
+Student 2 Name: Lijie Song
 
 
 2. Meta-data page in an index file
-- Show your meta-data page of an index design if you have any. 
-
+- Show your meta-data page of an index design if you have any.
+    We have a hidden page recording the following information:
+     - read/write/append counters
+     - page id of the root node
+     - total page number
 
 3. Index Entry Format
-- Show your index entry design (structure). 
+- Show your index entry design (structure).
+    Index entry is saved as <key, rid> pairs.
+    For entries with same key, we only keep one unique keys, which means in a leaf node, one key is followed by all rids
+    which share the same key.
+
+    Our index entry format is shown as below:
+
+        <Key1: rid1, rid2, rid3, rid4> <Key2: rid5, rid6, rid7> ...
 
 
 4. Page Format
 - Show your internal-page (non-leaf node) design.
+     Non leaf node page:
+     ┌────────────────────────────────────────────────────────────────────────────────┐
+     │ pointer, key, pointer, key....                                                 │
+     │                                                                                │
+     │    ┌───────────────────┬────────────────┬─────────────────┬────────────────────┤
+     │    │   SLOT DIRECTORY  │   FREE SPACE   │   SLOT NUMBER   │       IS LEAF      │
+     │    ├───────────────────┼────────────────┼─────────────────┼────────────────────┤
+     │    │      <slots>      │   free space   │   slot number   │  node type (bool)  │
+     └────┴───────────────────┴────────────────┴─────────────────┴────────────────────┘
 
 - Show your leaf-page (leaf node) design.
-
+     Leaf page format:
+     ┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
+     │ <key, [rid, rid, rid]>, ...                                                                        │
+     │                                                                                                    │
+     │    ┌───────────────────┬───────────────────┬────────────────┬─────────────────┬────────────────────┤
+     │    │   KEY DIRECTORY   │    NEXT POINTER   │   FREE SPACE   │   KEY NUMBER    │       IS LEAF      │
+     │    ├───────────────────┼───────────────────┼────────────────┼─────────────────┼────────────────────┤
+     │    │      <slots>      │ next leaf page id │   free space   │   key number    │  node type (bool)  │
+     └────┴───────────────────┴───────────────────┴────────────────┴─────────────────┴────────────────────┘
 
 5. Implementation Detail
 - Have you added your own source file (.cc or .h)?
+    We add 'nodepage.h' to define leaf-node class and non-leaf-node class;
 
-- Have you implemented non-lazy deletion? Choose Yes or No: 
+- Have you implemented non-lazy deletion? Choose Yes or No: No.
 
-- Have you implemented duplicated key handling that can span multiple pages? Choose Yes or No: 
+- Have you implemented duplicated key handling that can span multiple pages? Choose Yes or No: No.
   If yes, please explain briefly how you have implemented this feature.
 
 - Other implementation details:
+  1. InsertEntry Algorithm - recursively bottom-up insertion.
+	For non-leaf node, find corresponding pointer according to the key, insert key into the page the pointer pointing to. If there is a key pushed up from its children, add it into the node. Split and pushed up a key if needed;
+	For leaf node, insert key into the node. Split and push up a key if needed.
+  2. Read and write page counter:
+	When the file is created, we do nothing, the w-r-a should be 0-0-0.
+	When the file is opened, the read and write counter should be added by 1 because we need to read and write the hidden page.
+	When the file is closed, the write page should be added by 1 because we need to write the hidden page.
 
 
 6. Other (optional)
 - Freely use this section to tell us about things that are related to the project 3, but not related to the other sections (optional)
-
