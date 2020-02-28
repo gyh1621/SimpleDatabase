@@ -35,7 +35,7 @@ test_orders = [
     "ixtest\_\d+",
     # "ixtest\_extra\_\d+",
     "ixtest\_p\d+",
-    "ixtest\_pe\_\d+",
+    #"ixtest\_pe\_\d+",
     "ixtest\_custom\_\d+"
 ]
 
@@ -47,7 +47,7 @@ def run_command(cmd):
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
     )
     output, error = process.communicate()
-    return output.decode(), error.decode(), process.returncode
+    return output.decode(errors="ignore"), error.decode(errors="ignore"), process.returncode
 
 
 def print_test(test, output, err, code):

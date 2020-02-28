@@ -98,7 +98,7 @@ void testKeyNodePage() {
     KeyNumber keyNumber;
     void *block = nodePage.copyToEnd(0, dataLength, slotDataLength, keyNumber);
     void *pageData1 = malloc(PAGE_SIZE);
-    KeyNodePage nodePage1(pageData1, block, keyNumber, dataLength, slotDataLength, 0);
+    KeyNodePage nodePage1(pageData1, block, keyNumber, dataLength, slotDataLength);
     PageFreeSpace supposedFS = PAGE_SIZE
                                - nodePage1.infoSectionLength
                                - std::accumulate(keyLengths, keyLengths + keyNumbers / 2, 0)
@@ -125,7 +125,9 @@ void testKeyNodePage() {
     }
 
     free(key);
+    free(block);
     free(pageData);
+    free(pageData1);
 }
 
 

@@ -103,6 +103,7 @@ int testCase_p5(const std::string &indexFileName, const Attribute &attribute) {
         return fail;
     }
 
+    ix_ScanIterator.close();
 
     // Close index file
     rc = indexManager.closeFile(ixFileHandle);

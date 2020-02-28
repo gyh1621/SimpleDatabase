@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <limits>
+#include <stdexcept>
 
 #include "../rbf/rbfm.h"
 #include "nodepage.h"

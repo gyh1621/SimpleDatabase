@@ -78,6 +78,8 @@ int testCase_p6(const std::string &indexFileName, const Attribute &attribute) {
         return fail;
     }
 
+    ix_ScanIterator.close();
+
     // Close Index
     rc = indexManager.closeFile(ixFileHandle);
     assert(rc == success && "indexManager::closeFile() should not fail.");

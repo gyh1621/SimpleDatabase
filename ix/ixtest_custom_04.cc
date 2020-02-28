@@ -249,6 +249,7 @@ void testLeadNodePage2() {
     }
 
     free(key);
+    free(block);
     free(pageData);
     free(pageData1);
 }

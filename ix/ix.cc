@@ -1,4 +1,5 @@
 #include <fstream>
+#include <functional>
 
 #include "ix.h"
 
@@ -59,6 +60,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
     if (root == IXFileHandle::NotExistRootPageID) {
         void *pageData = malloc(PAGE_SIZE);
         if (pageData == nullptr) throw std::bad_alloc();
+        memset(pageData, 0, PAGE_SIZE);
         LeafNodePage nodePage(pageData, true);
         ixFileHandle.appendNodePage(nodePage.getPageData(), root);
         ixFileHandle.setRootNodeID(root);
@@ -101,6 +103,8 @@ RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
                              PageNum cur, PageNum &returnedPointer, void *returnedKey) {
     RC rc = 0;
     void* page = malloc(PAGE_SIZE);
+    if (page == nullptr) throw std::bad_alloc();
+    memset(page, 0, PAGE_SIZE);
     ixFileHandle.readNodePage(page, cur);
     bool isLeafNode = NodePage::isLeafNode(page);
 
@@ -124,8 +128,9 @@ RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
             if (cur == ixFileHandle.getRootNodeID()) {
                 PageNum newRootid;
                 void* data = malloc(PAGE_SIZE);
+                if (data == nullptr) throw std::bad_alloc();
+                memset(data, 0, PAGE_SIZE);
                 KeyNodePage newRoot(data);
-
                 KeyNumber keyIndex;
                 newRoot.addKey(returnedKey, attribute.type, keyIndex);
                 newRoot.setRightPointer(0, returnedPointer, attribute.type);
@@ -143,7 +148,10 @@ RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
         int hasReturn;
         memcpy(&hasReturn, (char *) returnedKey + PAGE_SIZE - sizeof(int), sizeof(int));
         // no split before;
-        if (hasReturn == 0) return 0;
+        if (hasReturn == 0) {
+            free(page);
+            return 0;
+        }
         // split detected, add returned entry
         if (node.hasEnoughSpace(attribute, returnedKey)) {
             KeyNumber keyIndex;
@@ -160,6 +168,8 @@ RC IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
             if (cur == ixFileHandle.getRootNodeID()) {
                 PageNum newRootid;
                 void* data = malloc(PAGE_SIZE);
+                if (data == nullptr) throw std::bad_alloc();
+                memset(data, 0, PAGE_SIZE);
                 KeyNodePage newRoot(data);
 
                 KeyNumber keyIndex;
@@ -180,6 +190,8 @@ RC IndexManager::deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
                              const PageNum &cur) {
     RC rc = 0;
     void* page = malloc(PAGE_SIZE);
+    if (page == nullptr) throw std::bad_alloc();
+    memset(page, 0, PAGE_SIZE);
     ixFileHandle.readNodePage(page, cur);
     bool isLeafNode = NodePage::isLeafNode(page);
 
@@ -201,6 +213,8 @@ RC IndexManager::deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attrib
 void IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, PageNum &pageId,
                               int level) const {
     void* data = malloc(PAGE_SIZE);
+    if (data == nullptr) throw std::bad_alloc();
+    memset(data, 0, PAGE_SIZE);
     ixFileHandle.readNodePage(data, pageId);
     bool isLeaf = NodePage::isLeafNode(data);
 
@@ -275,6 +289,7 @@ void IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attri
         printSpace(level);
         std::cout << "}";
     }
+    free(data);
 }
 
 void IndexManager::printSpace(int spaceNum) const {
@@ -316,6 +331,8 @@ PageNum IndexManager::findNextNode(IXFileHandle &ixFileHandle, const Attribute &
                                    const void *key) {
     PageNum target;
     void* page = malloc(PAGE_SIZE);
+    if (page == nullptr) throw std::bad_alloc();
+    memset(page, 0, PAGE_SIZE);
     ixFileHandle.readNodePage(page, cur);
     KeyNodePage curNode(page, false);
     // initially, target is the left most pointer
@@ -339,7 +356,11 @@ void IndexManager::splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &att
                                 void* returnedKey, PageNum &returnedPointer) {
     // create new page, move half entries to the new one;
     void* curPage = malloc(PAGE_SIZE);
+    if (curPage == nullptr) throw std::bad_alloc();
+    memset(curPage, 0, PAGE_SIZE);
     void* newPage = malloc(PAGE_SIZE);
+    if (newPage == nullptr) throw std::bad_alloc();
+    memset(newPage, 0, PAGE_SIZE);
     ixFileHandle.readNodePage(curPage, id);
     KeyNodePage curNode(curPage, false);
     int totalSlotNumber = curNode.getSlotNumber();
@@ -411,8 +432,12 @@ RC IndexManager::splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attr
                                  const RID &rid, void *returnedKey, PageNum &returnedPointer) {
     RC rc;
     // create new page, move half entries to the new one;
-    void* curPage = malloc(PAGE_SIZE);
-    void* newPage = malloc(PAGE_SIZE);
+    void *curPage = malloc(PAGE_SIZE);
+    if (curPage == nullptr) throw std::bad_alloc();
+    memset(curPage, 0, PAGE_SIZE);
+    void *newPage = malloc(PAGE_SIZE);
+    if (newPage == nullptr) throw std::bad_alloc();
+    memset(newPage, 0, PAGE_SIZE);
     ixFileHandle.readNodePage(curPage, id);
     LeafNodePage curNode(curPage, false);
     int totalSlotNumber = curNode.getSlotNumber();
@@ -517,6 +542,8 @@ void IX_ScanIterator::setup(IXFileHandle &ixFileHandle,
     }
     this->attribute = attribute;
     currentPageData = malloc(PAGE_SIZE);
+    if (currentPageData == 0) throw std::bad_alloc();
+    memset(currentPageData, 0, PAGE_SIZE);
     if (currentPageData == nullptr) throw std::bad_alloc();
     this->ixFileHandle = &ixFileHandle;
     if (lowKey != nullptr) {
@@ -538,6 +565,7 @@ void IX_ScanIterator::setup(IXFileHandle &ixFileHandle,
     currentPage = ixFileHandle.getRootNodeID();
     if (currentPage == IXFileHandle::NotExistRootPageID) {
         // no page in current index
+        free(currentKey);
         currentKey = nullptr;
     } else {
         // reach left most leaf page
@@ -725,6 +753,7 @@ RC IXFileHandle::writeHiddenPage() {
 RC IXFileHandle::readHiddenPage() {
     void *data = malloc(PAGE_SIZE);
     if (data == nullptr) throw std::bad_alloc();
+    memset(data, 0, PAGE_SIZE);
     readNodePage(data, 0);
     if (*((char *) data) != 'Y') {
         free(data);
@@ -894,9 +923,9 @@ void NodePage::writeNthSlot(const KeyNumber &keyIndex, const PageOffset &keyOffs
 }
 
 bool NodePage::isLeafNode(void *data) {
-    int leaf;
+    bool leaf;
     memcpy(&leaf, (char *) data + PAGE_SIZE - sizeof(bool), sizeof(bool));
-    return leaf == int(true);
+    return leaf;
 }
 
 PageOffset NodePage::getKeyLength(const void *key, const AttrType &attrType) {
