@@ -3,7 +3,7 @@
 #include <cassert>
 #include "page.h"
 #include "record.h"
-#include "../types.h"
+#include "types.h"
 
 #ifndef _pfm_h_
 #define _pfm_h_

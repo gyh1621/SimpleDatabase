@@ -1,3 +1,3 @@
-cd rbf && make -j 4
-cd ../rm && make -j 4
-cd ../ix && make -j 4
+cd rbf && make -j 8
+cd ../rm && make -j 8
+cd ../ix && make -j 8

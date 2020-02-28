@@ -1,4 +1,4 @@
-#include "../types.h"
+#include "types.h"
 #include "record.h"
 
 #ifndef CS222_FALL19_PAGE_H

@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "../rbf/rbfm.h"
-#include "../types.h"
+#include "../rbf/types.h"
 
 # define RM_EOF (-1)  // end of a scan operator
 

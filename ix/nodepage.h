@@ -1,4 +1,4 @@
-#include "../types.h"
+#include "../rbf/types.h"
 
 #ifndef CS222P_WINTER20_NODEPAGE_H
 #define CS222P_WINTER20_NODEPAGE_H

@@ -3,7 +3,7 @@
 #include <vector>
 #include <cassert>
 #include <iostream>
-#include "../types.h"
+#include "types.h"
 
 #ifndef CS222_FALL19_RECORD_H
 #define CS222_FALL19_RECORD_H
