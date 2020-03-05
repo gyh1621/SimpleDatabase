@@ -73,7 +73,7 @@ RC privateTestCase_3() {
         tsVal = *(int *) ((char *) data1 + offset);
         isVal = *(int *) ((char *) data2 + offset);
         if (tsVal < compVal || isVal < compVal) {
-            cerr << "***** [FAIL] Incorrect scan value failure: table_scan.B " << tsVal << " : index_scan.B " << isVal
+            std::cout << "***** [FAIL] Incorrect scan value failure: table_scan.B " << tsVal << " : index_scan.B " << isVal
                  << " *****" << std::endl;
             rc = fail;
             break;

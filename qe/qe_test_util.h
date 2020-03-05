@@ -5,7 +5,6 @@
 #define _fail_
 const int fail = -1;
 #endif
-
 #include <fstream>
 #include <iostream>
 
@@ -37,9 +36,9 @@ const unsigned bufSize = 200;
 int createLeftTable() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Left Table****" << endl;
+    std::cout << std::endl << "****Create Left Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "A";
@@ -59,7 +58,7 @@ int createLeftTable() {
 
     RC rc = rm.createTable("left", attrs);
     if (rc == success) {
-        cerr << "****Left Table Created!****" << endl;
+        std::cout << "****Left Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -67,9 +66,9 @@ int createLeftTable() {
 int createLeftTable2() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Left2 Table****" << endl;
+    std::cout << std::endl << "****Create Left2 Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "A";
@@ -89,7 +88,7 @@ int createLeftTable2() {
 
     RC rc = rm.createTable("left2", attrs);
     if (rc == success) {
-        cerr << "****Left2 Table Created!****" << endl;
+        std::cout << "****Left2 Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -97,9 +96,9 @@ int createLeftTable2() {
 int createLeftTable3() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Left3 Table****" << endl;
+    std::cout << std::endl << "****Create Left3 Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "A";
@@ -119,7 +118,7 @@ int createLeftTable3() {
 
     RC rc = rm.createTable("left3", attrs);
     if (rc == success) {
-        cerr << "****Left3 Table Created!****" << endl;
+        std::cout << "****Left3 Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -127,9 +126,9 @@ int createLeftTable3() {
 int createLargeLeftTable() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Large Left Table****" << endl;
+    std::cout << std::endl << "****Create Large Left Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "A";
@@ -149,7 +148,7 @@ int createLargeLeftTable() {
 
     RC rc = rm.createTable("largeleft", attrs);
     if (rc == success) {
-        cerr << "****Large left Table Created!****" << endl;
+        std::cout << "****Large left Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -157,9 +156,9 @@ int createLargeLeftTable() {
 int createLargeLeftTable2() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Large Left2 Table****" << endl;
+    std::cout << std::endl << "****Create Large Left2 Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "A";
@@ -179,7 +178,7 @@ int createLargeLeftTable2() {
 
     RC rc = rm.createTable("largeleft2", attrs);
     if (rc == success) {
-        cerr << "****Large left2 Table Created!****" << endl;
+        std::cout << "****Large left2 Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -187,9 +186,9 @@ int createLargeLeftTable2() {
 int createLeftVarCharTable() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Left VarChar Table****" << endl;
+    std::cout << std::endl << "****Create Left VarChar Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "A";
@@ -204,7 +203,7 @@ int createLeftVarCharTable() {
 
     RC rc = rm.createTable("leftvarchar", attrs);
     if (rc == success) {
-        cerr << "****Left VarChar Table Created!****" << endl;
+        std::cout << "****Left VarChar Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -212,9 +211,9 @@ int createLeftVarCharTable() {
 int createRightTable() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Right Table****" << endl;
+    std::cout << std::endl << "****Create Right Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "B";
@@ -234,7 +233,7 @@ int createRightTable() {
 
     RC rc = rm.createTable("right", attrs);
     if (rc == success) {
-        cerr << "****Right Table Created!****" << endl;
+        std::cout << "****Right Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -242,9 +241,9 @@ int createRightTable() {
 int createRightTable2() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Right2 Table****" << endl;
+    std::cout << std::endl << "****Create Right2 Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "B";
@@ -264,7 +263,7 @@ int createRightTable2() {
 
     RC rc = rm.createTable("right2", attrs);
     if (rc == success) {
-        cerr << "****Right2 Table Created!****" << endl;
+        std::cout << "****Right2 Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -272,9 +271,9 @@ int createRightTable2() {
 int createLargeRightTable() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Large Right Table****" << endl;
+    std::cout << std::endl << "****Create Large Right Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "B";
@@ -294,7 +293,7 @@ int createLargeRightTable() {
 
     RC rc = rm.createTable("largeright", attrs);
     if (rc == success) {
-        cerr << "****Large Right Table Created!****" << endl;
+        std::cout << "****Large Right Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -302,9 +301,9 @@ int createLargeRightTable() {
 int createLargeRightTable2() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Large Right2 Table****" << endl;
+    std::cout << std::endl << "****Create Large Right2 Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "B";
@@ -324,7 +323,7 @@ int createLargeRightTable2() {
 
     RC rc = rm.createTable("largeright2", attrs);
     if (rc == success) {
-        cerr << "****Large Right2 Table Created!****" << endl;
+        std::cout << "****Large Right2 Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -332,9 +331,9 @@ int createLargeRightTable2() {
 int createRightVarCharTable() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Right VarChar Table****" << endl;
+    std::cout << std::endl << "****Create Right VarChar Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "B";
@@ -349,7 +348,7 @@ int createRightVarCharTable() {
 
     RC rc = rm.createTable("rightvarchar", attrs);
     if (rc == success) {
-        cerr << "****Right VarChar Table Created!****" << endl;
+        std::cout << "****Right VarChar Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -357,9 +356,9 @@ int createRightVarCharTable() {
 int createGroupTable() {
     // Functions Tested;
     // 1. Create Table
-    cerr << endl << "****Create Group Table****" << endl;
+    std::cout << std::endl << "****Create Group Table****" << std::endl;
 
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
 
     Attribute attr;
     attr.name = "A";
@@ -379,7 +378,7 @@ int createGroupTable() {
 
     RC rc = rm.createTable("group", attrs);
     if (rc == success) {
-        cerr << "****Group Table Created!****" << endl;
+        std::cout << "****Group Table Created!****" << std::endl;
     }
     return rc;
 }
@@ -473,7 +472,7 @@ void prepareRightTuple(int attributeCount, unsigned char *nullAttributesIndicato
 
 // Prepare the tuple to left var char table in the format conforming to Insert/Update/ReadTuple and readAttribute
 void prepareLeftVarCharTuple(int attributeCount, unsigned char *nullAttributesIndicator, int a, int length,
-                             const string b, void *buf) {
+                             const std::string b, void *buf) {
     int offset = 0;
 
     // Null-indicators
@@ -507,7 +506,7 @@ void prepareLeftVarCharTuple(int attributeCount, unsigned char *nullAttributesIn
 }
 
 // Prepare the tuple to right var char table in the format conforming to Insert/Update/ReadTuple and readAttribute
-void prepareRightVarCharTuple(int attributeCount, unsigned char *nullAttributesIndicator, int length, const string &b,
+void prepareRightVarCharTuple(int attributeCount, unsigned char *nullAttributesIndicator, int length, const std::string &b,
                               float c, void *buf) {
     int offset = 0;
 
@@ -549,7 +548,7 @@ int populateLeftTable() {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("left", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -586,7 +585,7 @@ int populateLeftTable2() {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("left2", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -624,7 +623,7 @@ int populateLeftTable2() {
     return rc;
 }
 
-int populateLeftTable3(vector<RID> &rids) {
+int populateLeftTable3(std::vector<RID> &rids) {
     // Functions Tested
     // 1. InsertTuple
     RC rc;
@@ -632,7 +631,7 @@ int populateLeftTable3(vector<RID> &rids) {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("left3", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -667,7 +666,7 @@ int populateLeftTable3(vector<RID> &rids) {
     return rc;
 }
 
-int updateLeftTable3(vector<RID> &rids) {
+int updateLeftTable3(std::vector<RID> &rids) {
     // Functions Tested
     // 1. updateTuple
     // 2. deleteTuple
@@ -675,7 +674,7 @@ int updateLeftTable3(vector<RID> &rids) {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("left3", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -721,7 +720,7 @@ int populateLargeLeftTable() {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("largeleft", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -758,7 +757,7 @@ int populateLargeLeftTable2() {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("largeleft2", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -795,7 +794,7 @@ int addRecordsToLargeLeftTable2() {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("largeleft2", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -831,7 +830,7 @@ int populateRightTable() {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("right", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -868,7 +867,7 @@ int populateLargeRightTable() {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("largeright", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -905,7 +904,7 @@ int populateLargeRightTable2() {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("largeright2", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -942,7 +941,7 @@ int populateLeftVarCharTable() {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("leftvarchar", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -957,7 +956,7 @@ int populateLeftVarCharTable() {
         int a = i + 20;
 
         int length = (i % 26) + 1;
-        string b = string(length, '\0');
+        std::string b = std::string(length, '\0');
         for (int j = 0; j < length; j++) {
             b[j] = 96 + length;
         }
@@ -982,7 +981,7 @@ int populateRightVarCharTable() {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("rightvarchar", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
@@ -995,7 +994,7 @@ int populateRightVarCharTable() {
 
         // Prepare the tuple data for insertion
         int length = (i % 26) + 1;
-        string b = string(length, '\0');
+        std::string b = std::string(length, '\0');
         for (int j = 0; j < length; j++) {
             b[j] = 96 + length;
         }
@@ -1022,7 +1021,7 @@ int populateGroupTable() {
     void *buf = malloc(bufSize);
 
     // GetAttributes
-    vector<Attribute> attrs;
+    std::vector<Attribute> attrs;
     rc = rm.getAttributes("group", attrs);
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 

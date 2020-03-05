@@ -12,7 +12,7 @@ RC testCase_5() {
     // Mandatory for all
     // 1. Filter -- IndexScan as input, on TypeReal attribute
     // SELECT * FROM RIGHT WHERE C >= 110.0
-    cerr << endl << "***** In QE Test Case 5 *****" << endl;
+    std::cout << std::endl << "***** In QE Test Case 5 *****" << std::endl;
 
     RC rc = success;
     auto *is = new IndexScan(rm, "right", "C");
@@ -50,25 +50,25 @@ RC testCase_5() {
         // is an attribute B NULL?
         nullBit = *(unsigned char *) ((char *) data) & ((unsigned) 1 << (unsigned) 7);
         if (nullBit) {
-            cerr << endl << "***** A returned value is not correct. *****" << endl;
+            std::cout << std::endl << "***** A returned value is not correct. *****" << std::endl;
             return exitWithError(is, value, filter, data);
         }
         valueB = *(int *) ((char *) data + 1 + offset);
 
         // Print right.B
-        cerr << "right.B " << valueB;
+        std::cout << "right.B " << valueB;
         offset += sizeof(int);
 
         // is an attribute C NULL?
         nullBit = *(unsigned char *) ((char *) data) & ((unsigned) 1 << (unsigned) 6);
         if (nullBit) {
-            cerr << endl << "***** A returned value is not correct. *****" << endl;
+            std::cout << std::endl << "***** A returned value is not correct. *****" << std::endl;
             return exitWithError(is, value, filter, data);
         }
         valueC = *(float *) ((char *) data + 1 + offset);
 
         // Print right.C
-        cerr << "  right.C " << valueC;
+        std::cout << "  right.C " << valueC;
         offset += sizeof(float);
         if (valueC < compVal) {
             return exitWithError(is, value, filter, data);
@@ -77,19 +77,19 @@ RC testCase_5() {
         // is an attribute D NULL?
         nullBit = *(unsigned char *) ((char *) data) & ((unsigned) 1 << (unsigned) 5);
         if (nullBit) {
-            cerr << endl << "***** A returned value is not correct. *****" << endl;
+            std::cout << std::endl << "***** A returned value is not correct. *****" << std::endl;
             return exitWithError(is, value, filter, data);
         }
         valueD = *(int *) ((char *) data + 1 + offset);
 
         // Print right.D
-        cerr << "  right.D " << valueD << endl;
+        std::cout << "  right.D " << valueD << std::endl;
 
         memset(data, 0, bufSize);
         actualResultCnt++;
     }
     if (expectedResultCnt != actualResultCnt) {
-        cerr << "***** The number of returned tuple is not correct. *****" << endl;
+        std::cout << "***** The number of returned tuple is not correct. *****" << std::endl;
         return exitWithError(is, value, filter, data);
     }
     delete filter;
@@ -104,10 +104,10 @@ int main() {
     // Indexes created: none
 
     if (testCase_5() != success) {
-        cerr << "***** [FAIL] QE Test Case 5 failed. *****" << endl;
+        std::cout << "***** [FAIL] QE Test Case 5 failed. *****" << std::endl;
         return fail;
     } else {
-        cerr << "***** QE Test Case 5 finished. The result will be examined. *****" << endl;
+        std::cout << "***** QE Test Case 5 finished. The result will be examined. *****" << std::endl;
         return success;
     }
 }
