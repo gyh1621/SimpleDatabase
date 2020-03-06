@@ -128,8 +128,8 @@ public:
 
     RC appendPage(const void *data, bool dataPage=true);                // Append a specific page
     RC appendPage(PageFreeSpace freeSpace, const void *data);           // Append a data page with free space specified
-    int getNumberOfPages();                                             // Get the number of data pages in the file
-    int getActualNumberOfPages();                                       // Get total number of pages
+    PageNum getNumberOfPages();                                             // Get the number of data pages in the file
+    PageNum getActualNumberOfPages();                                       // Get total number of pages
     RC collectCounterValues(Counter &readPageCount, Counter &writePageCount,
                             Counter &appendPageCount);                 // Put current counter values into variables
 

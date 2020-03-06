@@ -64,7 +64,7 @@ RC PagedFileManager::openFile(const std::string &fileName, FileHandle &fileHandl
         return -1;
     }
     fclose(file);
-    std::fstream* f = new std::fstream;
+    auto f = new std::fstream;
     f->open(fileName, std::ios::in | std::ios::out | std::ios::binary);
     RC rc = fileHandle.setHandle(f);
     f = nullptr;
@@ -195,7 +195,7 @@ bool FileHandle::isOccupied() {
 
 PageNum FileHandle::changeToActualPageNum(PageNum dataPageNum) {
     dataPageNum += 1;  // hidden page
-    return ceil(float(dataPageNum) / PAGES_IN_FSP) + dataPageNum;
+    return static_cast<PageNum>(ceil(float(dataPageNum) / PAGES_IN_FSP) + dataPageNum);
 }
 
 RC FileHandle::readPage(PageNum pageNum, void *data, bool actual) {
@@ -255,11 +255,11 @@ RC FileHandle::appendPage(PageFreeSpace freeSpace, const void *data) {
     return rc;
 }
 
-int FileHandle::getNumberOfPages() {
+PageNum FileHandle::getNumberOfPages() {
     return dataPageNum;
 }
 
-int FileHandle::getActualNumberOfPages() {
+PageNum FileHandle::getActualNumberOfPages() {
     return totalPageNum;
 }
 
@@ -317,11 +317,6 @@ void FileHandle::updateFreeSpaceOfPage(PageNum dataPageNum, PageFreeSpace freePa
 //                                 Free Space Page Class
 // ========================================================================================
 
-FreeSpacePage::FreeSpacePage(void *data) {
-    assert(data != nullptr);
-    page = data;
-}
-
 void FreeSpacePage::loadNewPage(void *data) {
     assert(data != nullptr);
     page = data;
@@ -372,18 +367,18 @@ DataPage::DataPage(void *data) {
     RecordSize recordLength;
     // freeSpaceOffset is the maximum record offset
     while (slot >= 0) {
-        parseSlot(slot, isPointer, recordOffset, recordLength);
+        parseSlot(static_cast<SlotNumber>(slot), isPointer, recordOffset, recordLength);
         if (!isPointer && recordOffset != DeletedRecordOffset) {
             freeSpaceOffset = std::max(freeSpaceOffset, recordOffset + recordLength);
         }
         slot--;
     }
-    PageOffset lastSlotOffset = getNthSlotOffset(slotNumber - 1);
+    PageOffset lastSlotOffset = getNthSlotOffset(static_cast<SlotNumber>(slotNumber - 1));
     assert(lastSlotOffset >= freeSpaceOffset);
-    freeSpace = lastSlotOffset - freeSpaceOffset;
+    freeSpace = static_cast<PageFreeSpace>(lastSlotOffset - freeSpaceOffset);
 }
 
-int DataPage::getNthSlotOffset(SlotNumber n) {
+PageOffset DataPage::getNthSlotOffset(SlotNumber n) {
 //    assert(n < slotNumber);
     return PAGE_SIZE - (InfoSize + SlotSize * (n + 1));
 }
@@ -420,7 +415,7 @@ void DataPage::deleteSlot(SlotNumber slot) {
 void DataPage::updateSlotInfo(PageOffset offset, RecordSize length, bool dir) {
     int slotOffset = 0;
     for(int i = 0; i < slotNumber; i++){
-        slotOffset = getNthSlotOffset(i);
+        slotOffset = getNthSlotOffset(static_cast<SlotNumber>(i));
         bool isPointer;
         memcpy(&isPointer, (char *)page + slotOffset, sizeof(bool));
         if(isPointer){
@@ -609,8 +604,8 @@ const void * DataPage::getPageData() {
     return page;
 }
 
-const PageFreeSpace DataPage::getFreeSpace() { return freeSpace; }
-const RecordNumber DataPage::getRecordNumber() { return recordNumber; }
+PageFreeSpace DataPage::getFreeSpace() { return freeSpace; }
+RecordNumber DataPage::getRecordNumber() { return recordNumber; }
 
 SlotNumber DataPage::getSlotNumber() { return slotNumber; }
 
@@ -620,7 +615,7 @@ SlotNumber DataPage::getSlotNumber() { return slotNumber; }
 // ========================================================================================
 
 int Record::getNullIndicatorSize(const int &fieldNumber) {
-    return ceil(fieldNumber / 8.0);
+    return static_cast<int>(ceil(fieldNumber / 8.0));
 }
 
 bool Record::isFieldNull(const int &fieldIndex, const void *nullIndicatorData) {
@@ -629,13 +624,14 @@ bool Record::isFieldNull(const int &fieldIndex, const void *nullIndicatorData) {
     unsigned nullIndicator;
     memcpy(&nullIndicator, (char *) nullIndicatorData + byteIndex, sizeof(unsigned));
     // get field bit's index in the byte
-    unsigned fieldBitIndex = 8 - fieldIndex % 8 - 1;
+    unsigned fieldBitIndex = static_cast<unsigned int>(8 - fieldIndex % 8 - 1);
     // get field bit
     unsigned fieldBit = (nullIndicator & ( 1 << fieldBitIndex)) >> fieldBitIndex;
     return fieldBit == 1;
 }
 
-int Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<Attribute> &recordDescriptor, const void *data) {
+RecordSize
+Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<Attribute> &recordDescriptor, const void *data) {
     // get initial size: header size + field offset section size
     auto size = Record::RecordHeaderSize + recordDescriptor.size() * sizeof(FieldOffset);
     auto offset = nullIndicatorSize;
@@ -643,7 +639,7 @@ int Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<
     // add fields' data size
     auto *charLength = new unsigned;
     for (auto it = recordDescriptor.begin(); it != recordDescriptor.end(); it++) {
-        int fieldIndex = std::distance(recordDescriptor.begin(), it);
+        int fieldIndex = static_cast<int>(std::distance(recordDescriptor.begin(), it));
         if (isFieldNull(fieldIndex, data)) continue;
         switch (it->type) {
             case AttrType::TypeInt: size += sizeof(int); offset += sizeof(int); break;
@@ -659,12 +655,12 @@ int Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<
     }
     delete(charLength);
 
-    return size;
+    return static_cast<RecordSize>(size);
 }
 
 Record::Record(const std::vector<Attribute> &recordDescriptor, const void *data, const RecordVersion version) {
     passedData = false;
-    int fieldNum = recordDescriptor.size();
+    auto fieldNum = static_cast<FieldNumber>(recordDescriptor.size());
     int nullIndicatorSize = getNullIndicatorSize(fieldNum);
     this->size = getRecordActualSize(nullIndicatorSize, recordDescriptor, data);
     this->record = malloc(this->size);
@@ -693,8 +689,8 @@ Record::Record(const std::vector<Attribute> &recordDescriptor, const void *data,
     bool nullBit;
     auto *varcharLength = new unsigned;
     for (auto it = recordDescriptor.begin(); it != recordDescriptor.end(); it++) {
-        int index = std::distance(recordDescriptor.begin(), it);  // field index
-        nullBit = isFieldNull(index, data);  // get null bit
+        auto index = std::distance(recordDescriptor.begin(), it);  // field index
+        nullBit = isFieldNull(static_cast<const int &>(index), data);  // get null bit
         auto currentFieldOffsetPos = RecordHeaderSize + index * sizeof(FieldOffset);
         if (nullBit) {
             // null field
@@ -750,7 +746,7 @@ const void * Record::getRecordData() {
 
 void Record::convertToRawData(const std::vector<Attribute> &recordDescriptor, void *data) {
     FieldNumber actualFieldNumber = 0;
-    for (Attribute attr: recordDescriptor) {
+    for (const Attribute& attr: recordDescriptor) {
         if (attr.type == AttrType::TypeNull) continue;
         else actualFieldNumber++;
     }
@@ -790,7 +786,7 @@ void Record::convertToRawData(const std::vector<Attribute> &recordDescriptor, vo
             }
             memcpy((char*)data + dataOffset, (char *)record + lastFieldEndOffset, fieldLength);
             dataOffset += fieldLength;
-            lastFieldEndOffset = fieldEndOffset;
+            lastFieldEndOffset = static_cast<size_t>(fieldEndOffset);
         }
     }
 }
@@ -831,7 +827,7 @@ void Record::printRecord(const std::vector<Attribute> &recordDescriptor) {
                     delete[](varchar);
                     break;
             }
-            lastFieldEndOffset = fieldEndOffset;
+            lastFieldEndOffset = static_cast<size_t>(fieldEndOffset);
         }
         if (i == fieldNumber - 1) {
             std::cout << std::endl;
@@ -863,7 +859,7 @@ void *Record::getFieldValue(const FieldNumber &fieldIndex, AttrLength &fieldLeng
 
 std::string Record::getString(const void *data, AttrLength attrLength) {
     std::string str;
-    for (FieldOffset i = 0; i < attrLength; i++) {
+    for (AttrLength i = 0; i < attrLength; i++) {
         str += *((char *) data + i);
     }
     return str;
@@ -888,7 +884,7 @@ int Record::readAttr(const std::vector<Attribute> &recordDescriptor, const std::
         if (recordDescriptor[i].name == attributeName) {
             break;
         }
-        lastFieldEndOffset = fieldEndOffset;
+        lastFieldEndOffset = static_cast<size_t>(fieldEndOffset);
     }
 
     // attribute not found
@@ -914,4 +910,4 @@ int Record::readAttr(const std::vector<Attribute> &recordDescriptor, const std::
 
 Record::~Record() {
     if (!passedData) free(this->record);
-};
+}

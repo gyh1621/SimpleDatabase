@@ -28,7 +28,8 @@ class Record {
     static const unsigned short RecordHeaderSize = sizeof(FieldNumber) + sizeof(RecordVersion);
 
     /* Get a record's actual size in bytes from raw record data */
-    static int getRecordActualSize(const int &nullIndicatorSize, const std::vector<Attribute> &recordDescriptor, const void *data);
+    static RecordSize
+    getRecordActualSize(const int &nullIndicatorSize, const std::vector<Attribute> &recordDescriptor, const void *data);
 
     /* Get null indicator data's size by field number */
     static int getNullIndicatorSize(const int &fieldNumber);
@@ -46,11 +47,11 @@ private:
     RecordSize size;
     void *record;
     // offset to the start of offset section
-    RecordVersion recordVersion;
-    FieldNumber fieldNumber;
+    RecordVersion recordVersion{};
+    FieldNumber fieldNumber{};
     bool passedData; // indicate whether record space is passed in or created in the class
 public:
-    Record(void* data);
+    explicit Record(void* data);
     Record(const std::vector<Attribute> &recordDescriptor, const void *data, RecordVersion version=0);
     Record(const Record&) = delete;                                     // Copy constructor, implement when needed
     Record(Record&&) = delete;                                          // Move constructor, implement when needed

@@ -152,7 +152,7 @@ public:
     RC scan(FileHandle &fileHandle,
             const std::vector<Attribute> &recordDescriptor,
             const std::string &conditionAttribute,
-            const CompOp compOp,                  // comparision type such as "<" and "="
+            CompOp compOp,                  // comparision type such as "<" and "="
             const void *value,                    // used in the comparison
             const std::vector<std::string> &attributeNames, // a list of projected attributes
             RBFM_ScanIterator &rbfm_ScanIterator);

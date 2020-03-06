@@ -23,8 +23,6 @@ private:
 
 public:
     FreeSpacePage() = default;
-    // passed page data, will not be delete in destructor
-    FreeSpacePage(void *data);
     FreeSpacePage(const FreeSpacePage&) = delete;                          // copy constructor, implement when needed
     FreeSpacePage(FreeSpacePage&&) = delete;                               // move constructor, implement when needed
     FreeSpacePage& operator=(const FreeSpacePage&) = delete;               // copy assignment, implement when needed
@@ -78,7 +76,7 @@ private:
     /* Get nth slot offset from page start
      * n starts from 0 and from right to left
      * */
-    static int getNthSlotOffset(SlotNumber n);
+    static PageOffset getNthSlotOffset(SlotNumber n);
 
     /* Get first available slot */
     SlotNumber getFirstAvailableSlot();
@@ -136,8 +134,8 @@ public:
     int checkRecordExist(SlotNumber &slotid, RID &newRID);
     const void *getPageData();          // get page data
     SlotNumber getSlotNumber();         // get page's slot number
-    const PageFreeSpace getFreeSpace();           // get free space
-    const RecordNumber getRecordNumber();
+    PageFreeSpace getFreeSpace();           // get free space
+    RecordNumber getRecordNumber();
 
     // only for debugging purpose, print all records' offset
     void printSlots();

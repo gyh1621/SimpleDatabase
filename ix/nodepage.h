@@ -27,15 +27,15 @@ public:
 
 protected:
 
-    PageFreeSpace freeSpace;
-    SlotNumber slotNumber;
-    bool isLeaf;
-    void *pageData;
+    PageFreeSpace freeSpace{};
+    SlotNumber slotNumber{};
+    bool isLeaf{};
+    void *pageData{};
     PageOffset infoSectionLength = sizeof(bool) + sizeof(SlotNumber) + sizeof(PageFreeSpace);
 
     // passed page data, will not be delete in destructor
     // init empty data
-    NodePage(void *pageData, bool init);
+    NodePage() = default;
     NodePage(const NodePage&) = delete;                             // copy constructor, implement when needed
     NodePage(NodePage&&) = delete;                                  // move constructor, implement when needed
     NodePage& operator=(const NodePage&) = delete;                  // copy assignment, implement when needed
@@ -43,10 +43,10 @@ protected:
     ~NodePage() = default;
 
     /* write info section */
-    void writeInfoSection();
+    virtual void writeInfoSection() {}
 
     /* read info section */
-    void readInfoSection();
+    virtual void readInfoSection() {}
 
     /* get current free space start offset */
     PageOffset getFreeSpaceOffset();
@@ -117,12 +117,19 @@ public:
     // if fail, return nullptr
     void* copyToEnd(const KeyNumber &startKey, PageOffset &dataLength, PageOffset &slotDataLength, KeyNumber &keyNumbers);
 
+    // check if current page has enough space for the new key
+    virtual bool hasEnoughSpace(const Attribute &attribute, const void *key) {}
+
 };
 
 
 class KeyNodePage: public NodePage {
 
     /* page format: same as NodePage */
+
+private:
+    void readInfoSection() override;
+    void writeInfoSection() override;
 
 public:
     // passed page data, will not be delete in destructor
@@ -161,8 +168,7 @@ public:
     PageNum getLeftPointer(const KeyNumber &keyIndex);
     PageNum getRightPointer(const KeyNumber &keyIndex, const AttrType &attrType);
 
-    // check if current page has enough space for the new key
-    bool hasEnoughSpace(const Attribute &attribute, const void *key);
+    bool hasEnoughSpace(const Attribute &attribute, const void *key) override;
 };
 
 
@@ -189,13 +195,13 @@ private:
     // if not exist, return 0, else return rid start offset
     PageOffset findRid(const KeyNumber &keyIndex, const AttrType &attrType, const RID &rid);
 
-    void readInfoSection();
+    void readInfoSection() override;
 
-    void writeInfoSection();
+    void writeInfoSection() override;
 
 public:
     // passed page data, will not be delete in destructor
-    LeafNodePage(void *pageData, bool init=true);
+    explicit LeafNodePage(void *pageData, bool init=true);
 
     // used in spliting, *block comes from "copyToEnd"
     LeafNodePage(void *pageData, const void* block, const KeyNumber &keyNumbers,

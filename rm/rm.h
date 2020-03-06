@@ -24,7 +24,7 @@ public:
 
     void setUp(const std::string &tableFileName, const std::string &conditionAttribute,
                CompOp compOp, const void *value, const std::vector<std::string> &attributeNames,
-               std::vector<Attribute> descriptor);
+               const std::vector<Attribute>& descriptor);
 
     // "data" follows the same format as RelationManager::insertTuple()
     // Return: 0 - success, RM_EOF: end
@@ -108,7 +108,7 @@ public:
     //   0: success
     RC scan(const std::string &tableName,
             const std::string &conditionAttribute,
-            const CompOp compOp,                  // comparison type such as "<" and "="
+            CompOp compOp,                  // comparison type such as "<" and "="
             const void *value,                    // used in the comparison
             const std::vector<std::string> &attributeNames, // a list of projected attributes
             RM_ScanIterator &rm_ScanIterator);

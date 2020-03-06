@@ -19,21 +19,10 @@
 //      getSlotNumber()
 //      getPageData()
 
-
-void testNodePageConstructor() {
-    void *data = malloc(PAGE_SIZE);
-    NodePage nodePage1(data, true);
-    assert(nodePage1.freeSpace == PAGE_SIZE - sizeof(bool) - sizeof(SlotNumber) - sizeof(PageFreeSpace));
-    NodePage nodePage2(data, false);
-    assert(nodePage2.freeSpace == nodePage1.freeSpace
-           && nodePage2.slotNumber == nodePage1.slotNumber
-           && nodePage2.isLeaf == nodePage1.isLeaf);
-    free(data);
-}
-
 void testNodePageMoveData() {
     void *pageData = malloc(PAGE_SIZE);
-    NodePage nodePage(pageData, true);
+    NodePage nodePage;
+    nodePage.pageData = pageData;
     int dataLength = sizeof(int) * 500;
     void *block = malloc(dataLength);
     for (int i = 0; i < 500; i++) {
@@ -54,7 +43,8 @@ void testNodePageMoveData() {
 
 void testNodePageUpdateSlots() {
     void *pageData = malloc(PAGE_SIZE);
-    NodePage nodePage(pageData, true);
+    NodePage nodePage;
+    nodePage.pageData = pageData;
     nodePage.slotNumber = 100;
     PageOffset offset = PAGE_SIZE - nodePage.infoSectionLength - sizeof(PageOffset);
     // write slots
@@ -88,7 +78,8 @@ void testNodePageUpdateSlots() {
 
 void testNodePageGetNthSlotOffset() {
     void *pageData = malloc(PAGE_SIZE);
-    NodePage nodePage(pageData, true);
+    NodePage nodePage;
+    nodePage.pageData = pageData;
     nodePage.slotNumber = 100;
     PageOffset offset = PAGE_SIZE - nodePage.infoSectionLength - sizeof(PageOffset);
     for (SlotNumber i = 0; i < nodePage.slotNumber; i++) {
@@ -101,7 +92,8 @@ void testNodePageGetNthSlotOffset() {
 
 void testNodePageGetNthKeyOffset() {
     void *pageData = malloc(PAGE_SIZE);
-    NodePage nodePage(pageData, true);
+    NodePage nodePage;
+    nodePage.pageData = pageData;
     nodePage.slotNumber = 100;
     PageOffset offset = PAGE_SIZE - nodePage.infoSectionLength - sizeof(PageOffset);
     // write slots
@@ -121,7 +113,8 @@ void testNodePageGetNthKeyOffset() {
 
 void testNodePageWriteNthSlot() {
     void *pageData = malloc(PAGE_SIZE);
-    NodePage nodePage(pageData, true);
+    NodePage nodePage;
+    nodePage.pageData = pageData;
     nodePage.slotNumber = 100;
     // write slots
     for (SlotNumber i = 0; i < nodePage.slotNumber; i++) {
@@ -192,7 +185,6 @@ int main() {
 
     std::cout << std::endl << "***** In IX Custom Test Case 02 *****" << std::endl;
 
-    testNodePageConstructor();
     testNodePageGetNthSlotOffset();
     testNodePageGetNthKeyOffset();
     testNodePageMoveData();

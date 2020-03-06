@@ -19,7 +19,7 @@ class IXFileHandle;
 class IndexManager {
 
 private:
-    bool fileExist(const std::string &fileName);
+    static bool fileExist(const std::string &fileName);
 
     // insert new Entry
     // if returnedKey key is not null, it means split happened before,
@@ -35,9 +35,9 @@ private:
 
     // leaf node split function
     // 0: success, 1: insert fail
-    RC splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, const void* key, const RID &rid, void *returnedKey, PageNum &returnedPointer);
+    RC splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attribute, PageNum id, const void* key, const RID &rid, void *returnedKey, PageNum &returnedPointer);
     // key node split function
-    void splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum id, void *returnedKey, PageNum &returnedPointer);
+    void splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &attribute, PageNum id, void *returnedKey, PageNum &returnedPointer);
     // find which pointer contains the given key
     PageNum findNextNode(IXFileHandle &ixFileHandle, const Attribute &attribute, const PageNum &cur, const void *key);
 
@@ -123,7 +123,7 @@ public:
     IX_ScanIterator();
 
     // Destructor
-    ~IX_ScanIterator();
+    ~IX_ScanIterator() = default;
 
     // setup for a new scan
     void setup(IXFileHandle &ixFileHandle,

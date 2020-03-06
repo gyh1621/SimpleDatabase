@@ -16,7 +16,7 @@ RecordBasedFileManager &RecordBasedFileManager::operator=(const RecordBasedFileM
 
 RC RecordBasedFileManager::getFirstPageAvailable(FileHandle &fileHandle, const int &freeSize, PageNum &pageNum) {
 
-    int totalPage = fileHandle.getNumberOfPages(), curPage = 0;
+    PageNum totalPage = fileHandle.getNumberOfPages(), curPage = 0;
 
     // find a page large enough
     PageFreeSpace pageFreeSpace;
@@ -54,7 +54,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vecto
 
     // try to find a page available
     PageNum pageNum;
-    int slotID;
+    SlotNumber slotID;
     void *pageData = malloc(PAGE_SIZE);
     memset(pageData, 0, PAGE_SIZE);
     auto neededSize = record.getSize() + DataPage::SlotSize;
@@ -276,7 +276,7 @@ void RBFM_ScanIterator::parseValue(const void *rawValue, const std::string& cond
     for (unsigned i = 0; i < this->descriptor.size(); i++) {
         const Attribute attr = this->descriptor[i];
         if (attr.name == conditionAttrName) {
-            this->conditionAttrFieldIndex = i;
+            this->conditionAttrFieldIndex = static_cast<FieldNumber>(i);
             this->conditionAttr = attr;
             break;
         }
@@ -394,7 +394,7 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
             recordAttrData = r.getFieldValue(conditionAttrFieldIndex, recordAttrLength);
 
             if (recordAttrData != nullptr) {  // not a null field
-                int compareResult = compare(recordAttrData, recordAttrLength);
+                int compareResult = compare(recordAttrData, static_cast<const FieldOffset &>(recordAttrLength));
                 if (compareResult == 0) {
                     if (compOp == EQ_OP || compOp == LE_OP || compOp == GE_OP) break;
                 } else if (compareResult > 0) {  // record attr value > condition value
