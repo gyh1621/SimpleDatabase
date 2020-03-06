@@ -1051,6 +1051,10 @@ KeyNodePage::KeyNodePage(void *pageData, bool init): NodePage(pageData, init) {
         // write to pageData
         PageOffset offset = PAGE_SIZE - sizeof(bool);
         memcpy((char *) pageData + offset, &isLeaf, sizeof(bool));
+    } else {
+        if (isLeaf) {
+            throw std::invalid_argument("pageData is not a key node page.");
+        }
     }
 }
 
@@ -1212,6 +1216,9 @@ LeafNodePage::LeafNodePage(void *pageData, bool init): NodePage(pageData, init) 
         writeInfoSection();
     } else {
         readInfoSection();
+        if (!isLeaf) {
+            throw std::invalid_argument("pageData is not a leaf node page.");
+        }
     }
 }
 
