@@ -36,7 +36,9 @@ test_orders = [
     # "ixtest\_extra\_\d+",
     "ixtest\_p\d+",
     #"ixtest\_pe\_\d+",
-    "ixtest\_custom\_\d+"
+    "ixtest\_custom\_\d+",
+    "qetest\_\d+",
+    "qetest\_p\d+",
 ]
 
 cmd = "{test_path}"

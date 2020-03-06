@@ -19,6 +19,10 @@ if ! [ "$OS" == "Ubuntu" ] || ! [ "$VER" == "18.04" ]; then
     exit 0
 fi
 
+# install dependencies
+sudo apt-get install -y libreadline-dev
+sudo apt-get install -y libedit-dev
+
 # install GCC 5.5.0 on Ubuntu 18.04
 if hash gcc && gcc --version | grep "5.5.0"; then
     echo "GCC 5.5.0 already installed."
