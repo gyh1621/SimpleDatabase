@@ -15,7 +15,7 @@ RC TEST_RM_CUSTOM_01b()
     // reopen rm, test table id
     std::cout <<std::endl << "***** In RM Custom Test Case 1b *****" <<std::endl;
 
-    TableID nextTableID = 128;  // result from custom test case 01
+    TableID nextTableID = 129;  // result from custom test case 01
     int tableNumber = 50;
     RC rc;
 

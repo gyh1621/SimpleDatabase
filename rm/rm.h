@@ -6,6 +6,7 @@
 
 #include "../rbf/rbfm.h"
 #include "../rbf/types.h"
+#include "../ix/ix.h"
 
 # define RM_EOF (-1)  // end of a scan operator
 
@@ -37,11 +38,15 @@ public:
 // RM_IndexScanIterator is an iterator to go through index entries
 class RM_IndexScanIterator {
 public:
+    IXFileHandle ixFileHandle;
+    IX_ScanIterator ixScanIterator;
+
     RM_IndexScanIterator() {};    // Constructor
     ~RM_IndexScanIterator() {};    // Destructor
+    void setUp(const std::string &fileName, const Attribute &attribute, const void *lowKey, const void *highKey, bool lowKeyInclusive, bool highKeyInclusive);
 
     // "key" follows the same format as in IndexManager::insertEntry()
-    RC getNextEntry(RID &rid, void *key) { return RM_EOF; };    // Get next matching entry
+    RC getNextEntry(RID &rid, void *key);    // Get next matching entry
     RC close() { return -1; };                        // Terminate index scan
 };
 
@@ -58,6 +63,8 @@ private:
     void getSysTableAttributes(std::vector<Attribute> &descriptor);
     // get "Columns" descriptor
     void getSysColTableAttributes(std::vector<Attribute> &descriptor);
+    // get "Indexes" descriptor
+    void getSysIdxTableAttributes(std::vector<Attribute> &descriptor);
     // insert meta info of new table into Tables and Columns
     void addMetaInfo(const std::string &tableName, const std::vector<Attribute> &descriptor);
     // get total table numbers
@@ -75,6 +82,17 @@ private:
     bool isSysTable(const std::string &tableName);
     // create TypeVarchar raw data
     void *createVarcharData(const std::string &str);
+    // insert corresponding entries after inserting tuple
+    void insertIdxEntry(const std::string &tableName, const std::vector<Attribute> attrs, const void* data, const RID &rid);
+    // delete corresponding entries after inserting tuple
+    void deleteIdxEntry(const std::string &tableName, const std::vector<Attribute> attrs, const void* data, const RID &rid);
+    // get index filename
+    // 0: success, 1: not exist
+    RC getIndexFileName(const std::string &tableName, const Attribute &attribute, std::string &fileName);
+    // add index info to sys table
+    void addIndexInfo(const std::string &fileName);
+    // delete index info
+    void deleteIndexInfo(const std::string fileName);
 public:
     static RelationManager &instance();
     // return: 0 - succsess, others - fail, same as RecordBasedFileManager::createFile();
@@ -133,11 +151,14 @@ public:
     void printSysTable(const std::string &tableName);
 
     // QE IX related
+    // 0: success, 1: table not exist, 2: attribute not exist, 3: index exists, 4: open index file fail
     RC createIndex(const std::string &tableName, const std::string &attributeName);
 
+    // 0: success, 1: table not exist, 2: attribute not exist, 3: index not exists
     RC destroyIndex(const std::string &tableName, const std::string &attributeName);
 
     // indexScan returns an iterator to allow the caller to go through qualified entries in index
+    // 0: success, 1: table not exists, 2: attribute not exist, 3: index not exist;
     RC indexScan(const std::string &tableName,
                  const std::string &attributeName,
                  const void *lowKey,

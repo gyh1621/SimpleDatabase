@@ -46,7 +46,7 @@ RC TEST_RM_CUSTOM_01()
     assert(rc == success && "create catalog failed");
 
     int tableNumber = 100;
-    TableID nextTableID = 3;
+    TableID nextTableID = 4;
 
     std::string tableName = "test_table";
     for (int i = 0; i < tableNumber; i++) {

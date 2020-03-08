@@ -30,7 +30,7 @@ file(GLOB files rm/rmtest_*.cc)
 foreach (file ${files})
     get_filename_component(name ${file} NAME_WE)
     add_executable(${name} ${file})
-    target_link_libraries(${name} RM RBFM PFM)
+    target_link_libraries(${name} RM IX RBFM PFM)
 endforeach ()
 
 file(GLOB files ix/ixtest_*.cc)

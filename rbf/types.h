@@ -62,6 +62,7 @@ typedef unsigned short RecordSize;    // type depends on PAGE_SIZE
 
 # define SYSTABLE "Tables"
 # define SYSCOLTABLE "Columns"
+# define SYSIDXTABLE "Indexes"
 # define TUPLE_TMP_SIZE PAGE_SIZE
 
 typedef unsigned TableID;

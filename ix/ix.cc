@@ -96,6 +96,7 @@ RC IndexManager::scan(IXFileHandle &ixFileHandle,
 
 void IndexManager::printBtree(IXFileHandle &ixFileHandle, const Attribute &attribute) const {
     PageNum root = ixFileHandle.getRootNodeID();
+    if (root == IXFileHandle::NotExistRootPageID) return;
     printBTree(ixFileHandle, attribute, root, 0);
 }
 

@@ -1,4 +1,5 @@
 #include "rm.h"
+#include "../ix/ix.h"
 
 RelationManager &RelationManager::instance() {
     static RelationManager _relation_manager = RelationManager();
@@ -21,12 +22,17 @@ RC RelationManager::createCatalog() {
     if(rc != 0) return rc;
     rc = RecordBasedFileManager::instance().createFile(SYSCOLTABLE);
     if(rc != 0) return rc;
+    rc = RecordBasedFileManager::instance().createFile(SYSIDXTABLE);
+    if(rc != 0) return rc;
     std::vector<Attribute> tablesAttrs;
     std::vector<Attribute> columnsAttrs;
+    std::vector<Attribute>  indexesAttrs;
     getSysTableAttributes(tablesAttrs);
     getSysColTableAttributes(columnsAttrs);
+    getSysIdxTableAttributes(indexesAttrs);
     addMetaInfo(SYSTABLE, tablesAttrs);
     addMetaInfo(SYSCOLTABLE, columnsAttrs);
+    addMetaInfo(SYSIDXTABLE, indexesAttrs);
     return rc;
 }
 
@@ -35,6 +41,8 @@ RC RelationManager::deleteCatalog() {
     rc = RecordBasedFileManager::instance().destroyFile(SYSTABLE);
     if(rc != 0) return rc;
     rc = RecordBasedFileManager::instance().destroyFile(SYSCOLTABLE);
+    if(rc != 0) return rc;
+    rc = RecordBasedFileManager::instance().destroyFile(SYSIDXTABLE);
     tableNumber = 0;
     return rc;
 }
@@ -72,6 +80,12 @@ RC RelationManager::deleteTable(const std::string &tableName) {
     }else{
         return -1;
     }
+
+    std::vector<Attribute> attrs;
+    getAttributes(tableName, attrs);
+    for (int i = 0; i < attrs.size(); i++) {
+        destroyIndex(tableName, attrs[i].name);
+    }
     return rc;
 }
 
@@ -81,6 +95,9 @@ RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attr
         return 0;
     } else if (tableName == SYSCOLTABLE) {
         getSysColTableAttributes(attrs);
+        return 0;
+    }  else if (tableName == SYSIDXTABLE) {
+        getSysIdxTableAttributes((attrs));
         return 0;
     }
 
@@ -138,14 +155,20 @@ RC RelationManager::updateTuple(const std::string &tableName, const void *data, 
     TableID id;
     std::vector<Attribute> attr;
     getAttributes(tableName, attr);
+    void* oldData = malloc(TUPLE_TMP_SIZE);
     RC rc;
     rc = getTableInfo(tableName, id, fileName);
     if(rc != 0) return -2;
     rc = RecordBasedFileManager::instance().openFile(fileName, fileHandle);
     if(rc != 0) return rc;
+    rc = RecordBasedFileManager::instance().readRecord(fileHandle, attr, rid, oldData);
+    if(rc != 0) return rc;
+    deleteIdxEntry(tableName, attr, oldData, rid);
     rc = RecordBasedFileManager::instance().updateRecord(fileHandle, attr, data, rid);
     if(rc != 0) return rc;
     rc = RecordBasedFileManager::instance().closeFile(fileHandle);
+    insertIdxEntry(tableName, attr, data, rid);
+    free(oldData);
     return rc;
 }
 
@@ -223,6 +246,7 @@ RC RelationManager::insertTuple(const std::string &tableName, const void *data, 
     rc = RecordBasedFileManager::instance().insertRecord(fileHandle, attr, data, rid);
     if(rc != 0) return rc;
     rc = RecordBasedFileManager::instance().closeFile(fileHandle);
+    insertIdxEntry(tableName, attr, data, rid);
     return rc;
 }
 
@@ -233,14 +257,19 @@ RC RelationManager::deleteTuple(const std::string &tableName, const RID &rid, bo
     std::string fileName;
     std::vector<Attribute> attr;
     getAttributes(tableName, attr);
+    void* data = malloc(TUPLE_TMP_SIZE);
     RC rc;
     rc = getTableInfo(tableName, id, fileName);
     if(rc != 0) return -2;
     rc = RecordBasedFileManager::instance().openFile(fileName, fileHandle);
     if(rc != 0) return rc;
+    rc = RecordBasedFileManager::instance().readRecord(fileHandle, attr, rid, data);
+    if(rc != 0) return rc;
     rc = RecordBasedFileManager::instance().deleteRecord(fileHandle, attr, rid);
     if(rc != 0) return rc;
     rc = RecordBasedFileManager::instance().closeFile(fileHandle);
+    deleteIdxEntry(tableName, attr, data, rid);
+    free(data);
     return rc;
 }
 
@@ -288,6 +317,19 @@ void RelationManager::getSysColTableAttributes(std::vector<Attribute> &descripto
     attribute.name = "column-position";
     attribute.type = TypeInt;
     attribute.length = (AttrLength) 4;
+    descriptor.push_back(attribute);
+}
+
+void RelationManager::getSysIdxTableAttributes(std::vector<Attribute> &descriptor) {
+    Attribute attribute;
+    attribute.name = "index-name";
+    attribute.type = TypeVarChar;
+    attribute.length = (AttrLength) 50;
+    descriptor.push_back(attribute);
+
+    attribute.name = "file-name";
+    attribute.type = TypeVarChar;
+    attribute.length = (AttrLength) 50;
     descriptor.push_back(attribute);
 }
 
@@ -470,6 +512,11 @@ RC RelationManager::getTableInfo(const std::string &tableName, TableID &id, std:
         fileName = SYSCOLTABLE;
         return 0;
     }
+    if(tableName == SYSIDXTABLE){
+        id = 3;
+        fileName = SYSIDXTABLE;
+        return 0;
+    }
     RM_ScanIterator rmsi;
     RID rid;
     void* data = malloc(TUPLE_TMP_SIZE);
@@ -512,7 +559,7 @@ RC RelationManager::getTableInfo(const std::string &tableName, TableID &id, std:
 }
 
 bool RelationManager::isSysTable(const std::string &tableName) {
-    return tableName == SYSTABLE || tableName == SYSCOLTABLE;
+    return tableName == SYSTABLE || tableName == SYSCOLTABLE || tableName == SYSIDXTABLE;
 }
 
 void* RelationManager::createVarcharData(const std::string &str) {
@@ -523,6 +570,137 @@ void* RelationManager::createVarcharData(const std::string &str) {
     memcpy(data, &length, 4);
     memcpy((char *) data + 4, chars, str.length());
     return data;
+}
+
+void RelationManager::insertIdxEntry(const std::string &tableName, const std::vector<Attribute> attrs, const void *data,
+                                    const RID &rid) {
+    void* key;
+    AttrLength attrLength;
+    std::string fileName;
+    IXFileHandle ixFileHandle;
+    for (int i = 0; i < attrs.size(); i++) {
+        if (getIndexFileName(tableName, attrs[i], fileName) != 0) {
+            continue;
+        }
+        Record record(attrs, data);
+        key = record.getFieldValue(i, attrLength);
+        IndexManager::instance().openFile(fileName, ixFileHandle);
+        IndexManager::instance().insertEntry(ixFileHandle, attrs[i], key, rid);
+        IndexManager::instance().closeFile(ixFileHandle);
+        free(key);
+    }
+}
+
+void RelationManager::deleteIdxEntry(const std::string &tableName, const std::vector<Attribute> attrs, const void *data,
+                                    const RID &rid) {
+    void* key;
+    AttrLength attrLength;
+    std::string fileName;
+    IXFileHandle ixFileHandle;
+    for (int i = 0; i < attrs.size(); i++) {
+        if (getIndexFileName(tableName, attrs[i], fileName) != 0) {
+            continue;
+        }
+        Record record(attrs, data);
+        key = record.getFieldValue(i, attrLength);
+        IndexManager::instance().openFile(fileName, ixFileHandle);
+        IndexManager::instance().deleteEntry(ixFileHandle, attrs[i], key, rid);
+        IndexManager::instance().closeFile(ixFileHandle);
+        free(key);
+    }
+}
+
+RC RelationManager::getIndexFileName(const std::string &tableName, const Attribute &attribute,
+                                       std::string &fileName) {
+    std::string indexName = tableName + "." + attribute.name;
+    RM_ScanIterator rmsi;
+    RID rid;
+    void* data = malloc(TUPLE_TMP_SIZE);
+    if (data == nullptr) throw std::bad_alloc();
+    std::vector<Attribute> descriptor;
+    getSysIdxTableAttributes(descriptor);
+    std::vector<std::string> attrNames;
+    getDescriptorString(descriptor, attrNames);
+    RC rc;
+    void *indexNameData = createVarcharData(indexName);
+    rc = scan(SYSIDXTABLE, "index-name", EQ_OP, indexNameData, attrNames, rmsi);
+    assert(rc == 0);
+    if(rmsi.getNextTuple(rid, data) != RM_EOF){
+        // 1 bit nullIndicator
+        int offset = 1;
+        int length;
+        memcpy(&length, (char *)data + offset, sizeof(int));
+        offset += sizeof(int) + length;
+        memcpy(&length, (char *)data + offset, sizeof(int));
+        offset += sizeof(int);
+        char* varchar = new char[length];
+        memcpy(varchar, (char *)data + offset, static_cast<size_t>(length));
+        std::string s(varchar, static_cast<unsigned long>(length));
+        delete[](varchar);
+        //get fileHandle
+        fileName = s;
+        free(indexNameData);
+        free(data);
+        rmsi.close();
+        rc = 0;
+    }else{
+        free(indexNameData);
+        free(data);
+        rmsi.close();
+        rc = 1;
+    }
+    return rc;
+}
+
+void RelationManager::addIndexInfo(const std::string &fileName) {
+    void* data = malloc(TUPLE_TMP_SIZE);
+    if (data == nullptr) throw std::bad_alloc();
+    int nullPointerSize = static_cast<int>(ceil(2 / 8.0));
+    auto* nullPointer = (unsigned char*)data;
+    for(int i = 0; i < nullPointerSize; i++) nullPointer[i] = 0;
+
+    // null pointer
+    memcpy((char *) data, nullPointer, static_cast<size_t>(nullPointerSize));
+    int dataOffset = nullPointerSize;
+    // index-name
+    int length = static_cast<int>(fileName.size());
+    memcpy((char *)data + dataOffset, &length, 4);
+    dataOffset += 4;
+    memcpy((char *) data + dataOffset, fileName.c_str(), static_cast<size_t>(length));
+    dataOffset += length;
+    //file-name;
+    memcpy((char *)data + dataOffset, &length, sizeof(int));
+    dataOffset += 4;
+    memcpy((char *) data + dataOffset, fileName.c_str(), static_cast<size_t>(length));
+
+    RID rid;
+    RC rc = insertTuple(SYSIDXTABLE, data, rid, true);
+    assert(rc == 0);
+    free(data);
+}
+
+void RelationManager::deleteIndexInfo(const std::string fileName) {
+    RC rc;
+    RM_ScanIterator rmsi;
+    RID rid;
+    void* data = malloc(TUPLE_TMP_SIZE);
+    if(data == nullptr) throw std::bad_alloc();
+
+    // delete record in sys table
+    std::vector<Attribute> descriptor;
+    getSysIdxTableAttributes(descriptor);
+    std::vector<std::string> attrNames;
+    getDescriptorString(descriptor, attrNames);
+    void *tableNameData = createVarcharData(fileName);
+    rc = scan(SYSIDXTABLE, "index-name", EQ_OP, tableNameData, attrNames, rmsi);
+    assert(rc == 0);
+    if(rmsi.getNextTuple(rid, data) != RM_EOF){
+        RC res = deleteTuple(SYSIDXTABLE, rid, true);
+        assert(res == 0 && "delete tuple failed");
+    }
+    free(data);
+    free(tableNameData);
+    rmsi.close();
 }
 
 // Extra credit work
@@ -592,11 +770,77 @@ RC RM_ScanIterator::close() {
 
 // QE IX related
 RC RelationManager::createIndex(const std::string &tableName, const std::string &attributeName) {
-    return -1;
+    RC rc;
+    std::vector<Attribute> attrs;
+    Attribute attribute;
+    rc = getAttributes(tableName, attrs);
+    if (rc != 0) return 1;
+    int i;
+    for (i = 0; i < attrs.size(); i++) {
+        if (attrs[i].name == attributeName) {
+            attribute = attrs[i];
+            break;
+        }
+    }
+    if (i == attrs.size()) {
+        return 2;
+    }
+    IXFileHandle ixFileHandle;
+    std::string fileName = tableName + "." + attributeName;
+    rc = IndexManager::instance().createFile(fileName);
+    if (rc != 0) return 3;
+    rc = IndexManager::instance().openFile(fileName, ixFileHandle);
+    if (rc != 0) return 4;
+    AttrLength length;
+    RM_ScanIterator rmsi;
+    RID rid;
+    void* data = malloc(TUPLE_TMP_SIZE);
+    if (data == nullptr) throw std::bad_alloc();
+    void* key;
+    std::vector<std::string> attrNames;
+    attrNames.push_back(attributeName);
+    rc = scan(tableName, "", NO_OP, NULL, attrNames, rmsi);
+    assert(rc == 0);
+    while(rmsi.getNextTuple(rid, data) != RM_EOF){
+        length = 0;
+        if (attribute.type == TypeVarChar) {
+            memcpy(&length, (char *)data + 1, sizeof(int));
+        }
+        length += sizeof(int);
+        key = malloc(length);
+        memcpy((char *)key, (char *)data + 1, length);
+        IndexManager::instance().insertEntry(ixFileHandle, attribute, key, rid);
+        free(key);
+    }
+
+    free(data);
+    rmsi.close();
+    rc = IndexManager::instance().closeFile(ixFileHandle);
+    if (rc != 0) return 5;
+    addIndexInfo(fileName);
+    return rc;
 }
 
 RC RelationManager::destroyIndex(const std::string &tableName, const std::string &attributeName) {
-    return -1;
+    RC rc;
+    std::vector<Attribute> attrs;
+    rc = getAttributes(tableName, attrs);
+    if (rc != 0) return 1;
+    int i;
+    for (i = 0; i < attrs.size(); i++) {
+        if (attrs[i].name == attributeName) {
+            break;
+        }
+    }
+    if (i == attrs.size()) {
+        return 2;
+    }
+
+    std::string fileName = tableName + "." + attributeName;
+    rc = IndexManager::instance().destroyFile(fileName);
+    if (rc != 0) return 3;
+    deleteIndexInfo(fileName);
+    return rc;
 }
 
 RC RelationManager::indexScan(const std::string &tableName,
@@ -606,5 +850,37 @@ RC RelationManager::indexScan(const std::string &tableName,
                               bool lowKeyInclusive,
                               bool highKeyInclusive,
                               RM_IndexScanIterator &rm_IndexScanIterator) {
-    return -1;
+    RC rc;
+    std::string fileName;
+    std::vector<Attribute> attrs;
+    rc = getAttributes(tableName, attrs);
+    if (rc != 0) return 1;
+    int i;
+    for (i = 0; i < attrs.size(); i++) {
+        if (attributeName == attrs[i].name) {
+            break;
+        }
+    }
+    if (i == attrs.size()) return 2;
+
+    rc = getIndexFileName(tableName, attrs[i], fileName);
+    if (rc != 0) return 3;
+
+    rm_IndexScanIterator.setUp(fileName, attrs[i], lowKey, highKey, lowKeyInclusive, highKeyInclusive);
+    return 0;
+}
+
+void RM_IndexScanIterator::setUp(const std::string &fileName, const Attribute &attribute, const void *lowKey, const void *highKey, bool lowKeyInclusive, bool highKeyInclusive) {
+    RC rc = IndexManager::instance().openFile(fileName, this->ixFileHandle);
+    assert(rc == 0 && "open file should not fail");
+    IndexManager::instance().scan(this->ixFileHandle, attribute, lowKey, highKey, lowKeyInclusive, highKeyInclusive, this->ixScanIterator);
+}
+
+RC RM_IndexScanIterator::getNextEntry(RID &rid, void *key) {
+    RC rc = ixScanIterator.getNextEntry(rid, key);
+    if (rc == IX_EOF) {
+        return IX_EOF;
+    } else {
+        return rc;
+    }
 }
