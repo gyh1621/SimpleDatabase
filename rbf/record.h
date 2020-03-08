@@ -43,6 +43,13 @@ public:
     /* convert TypeVarchar data to string */
     static std::string getString(const void *data, AttrLength attrLength);
 
+    /* compare two data based on type */
+    // when type is varchar, data points to "length + string"
+    // if data1 > data2, return positive;
+    // if data2 < data2, return negative;
+    // if data1 == data2, return 0;
+    static RC compareRawData(const void *data1, const void *data2, const AttrType &attrType);
+
 private:
     RecordSize size;
     void *record;
@@ -69,6 +76,7 @@ public:
     // if null field, return nullptr
     void *getFieldValue(const FieldNumber &fieldIndex, AttrLength &fieldLength);
 
+    // read attribute into raw data with one byte of null indicator put ahead
     // return: 0 - success, -1 - target attribute name not found
     int readAttr(const std::vector<Attribute> &recordDescriptor, const std::string &attributeName, void* data);
 };

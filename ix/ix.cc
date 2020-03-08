@@ -340,7 +340,7 @@ PageNum IndexManager::findNextNode(IXFileHandle &ixFileHandle, const Attribute &
     void* tempKey;
     for (SlotNumber i = 0; i < curNode.getSlotNumber(); i++) {
         tempKey = curNode.getNthKey(i, attribute.type);
-        if (NodePage::compare(key, tempKey, attribute.type) >= 0) {
+        if (Record::compareRawData(key, tempKey, attribute.type) >= 0) {
             target = curNode.getRightPointer(i, attribute.type);
         } else { // target found stop
             free(tempKey);
@@ -404,7 +404,7 @@ void IndexManager::splitKeyNode(IXFileHandle &ixFileHandle, const Attribute &att
 
     // add new key
     KeyNumber keyIndex;
-    if (NodePage::compare(returnedKey, middle, attribute.type) < 0) {
+    if (Record::compareRawData(returnedKey, middle, attribute.type) < 0) {
         curNode.addKey(returnedKey, attribute.type, keyIndex);
         curNode.setRightPointer(keyIndex, returnedPointer, attribute.type);
     } else {
@@ -493,7 +493,7 @@ RC IndexManager::splitLeafNode(IXFileHandle &ixFileHandle, const Attribute &attr
     curNode.deleteKeysStartFrom(static_cast<const KeyNumber &>(splitPosition - 1));
 
     // add new key
-    if (NodePage::compare(key, returnedKey, attribute.type) < 0) {
+    if (Record::compareRawData(key, returnedKey, attribute.type) < 0) {
         rc = curNode.addKey(key, attribute.type, rid);
     } else {
         rc = newNode.addKey(key, attribute.type, rid);
@@ -630,12 +630,12 @@ bool IX_ScanIterator::findNextKey() {
 bool IX_ScanIterator::currentKeySatisfied() {
     assert(currentKey != nullptr);
     if (lowKey != nullptr) {
-        RC res = NodePage::compare(lowKey, currentKey, attribute.type);
+        RC res = Record::compareRawData(lowKey, currentKey, attribute.type);
         if (res > 0) return false;
         if (res == 0 && !lowKeyInclusive) return false;
     }
     if (highKey != nullptr) {
-        RC res = NodePage::compare(highKey, currentKey, attribute.type);
+        RC res = Record::compareRawData(highKey, currentKey, attribute.type);
         if (res < 0) return false;
         if (res == 0 && !highKeyInclusive) return false;
     }
@@ -660,7 +660,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key) {
         }
     } else {
         void *tmpKey = nodePage.getNthKey(currentKeyIndex, attribute.type);
-        RC res = NodePage::compare(tmpKey, currentKey, attribute.type);
+        RC res = Record::compareRawData(tmpKey, currentKey, attribute.type);
         free(tmpKey);
         if (res != 0) {
             // key has been deleted
@@ -912,7 +912,7 @@ bool NodePage::findKey(const void *key, const AttrType &attrType, SlotNumber &ke
     while (l <= r) {
         mid = (l + r) / 2;
         void *slotData = getNthKey(static_cast<const KeyNumber &>(mid), attrType);
-        auto res = compare(slotData, key, attrType);
+        auto res = Record::compareRawData(slotData, key, attrType);
         free(slotData);
         if (res > 0) {
             r = mid - 1;
@@ -925,33 +925,6 @@ bool NodePage::findKey(const void *key, const AttrType &attrType, SlotNumber &ke
     }
     keyIndex = static_cast<SlotNumber>(l);
     return false;
-}
-
-RC NodePage::compare(const void *data1, const void *data2, const AttrType &attrType) {
-    if (attrType == TypeReal) {
-        float f1 = *((float *) data1), f2 = *((float *) data2);
-        if (f1 > f2) return 1;
-        else if (f1 < f2) return -1;
-        else return 0;
-    } else if (attrType == TypeInt) {
-        int i1 = *((int *) data1), i2 = *((int *) data2);
-        return i1 - i2;
-    } else if (attrType == TypeVarChar) {
-        int l1, l2;
-        memcpy(&l1, data1, 4);
-        memcpy(&l2, data2, 4);
-        if (l1 == l2) {
-            return memcmp((char *) data1 + 4, (char *) data2 + 4, static_cast<size_t>(l1));
-        } else if (l1 > l2) {
-            int res = memcmp((char *) data1 + 4, (char *) data2 + 4, static_cast<size_t>(l2));
-            return res == 0 ? 1 : res;
-        } else {
-            int res = memcmp((char *) data1 + 4, (char *) data2 + 4, static_cast<size_t>(l1));
-            return res == 0 ? -1 : res;
-        }
-    } else {
-        throw std::invalid_argument("invalid attr type");
-    }
 }
 
 void NodePage::deleteKeysStartFrom(const KeyNumber &keyIndex) {

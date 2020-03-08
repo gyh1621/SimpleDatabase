@@ -82,13 +82,6 @@ public:
     SlotNumber getSlotNumber() { return slotNumber; };
     void *getPageData() { return pageData; }
 
-    /* compare two data based on type */
-    // when type is varchar, data points to "length + string"
-    // if data1 > data2, return positive;
-    // if data2 < data2, return negative;
-    // if data1 == data2, return 0;
-    static RC compare(const void *data1, const void *data2, const AttrType &attrType);
-
     /* Delete keys start from keyIndex */
     void deleteKeysStartFrom(const KeyNumber &keyIndex);
 

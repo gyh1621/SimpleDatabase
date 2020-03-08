@@ -37,6 +37,11 @@ public:
     virtual void getAttributes(std::vector<Attribute> &attrs) const = 0;
 
     virtual ~Iterator() = default;;
+
+    static bool isAttrDataNull(const void* data);
+
+    static std::string getAttributeName(const std::string &relAttrName);
+    static std::vector<Attribute> getRecordDescriptor(const std::vector<Attribute> &attributes);
 };
 
 class TableScan : public Iterator {
@@ -166,6 +171,11 @@ public:
 
 class Filter : public Iterator {
     // Filter operator
+
+    Iterator *input;
+    Condition condition;
+    std::vector<Attribute> recordDescriptor;
+
 public:
     Filter(Iterator *input,               // Iterator of input R
            const Condition &condition     // Selection condition
@@ -173,10 +183,10 @@ public:
 
     ~Filter() override {};
 
-    RC getNextTuple(void *data) override { return QE_EOF; };
+    RC getNextTuple(void *data) override;
 
     // For attribute in std::vector<Attribute>, name it as rel.attr
-    void getAttributes(std::vector<Attribute> &attrs) const override {};
+    void getAttributes(std::vector<Attribute> &attrs) const override;
 };
 
 class Project : public Iterator {

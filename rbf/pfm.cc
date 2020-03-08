@@ -630,6 +630,33 @@ bool Record::isFieldNull(const int &fieldIndex, const void *nullIndicatorData) {
     return fieldBit == 1;
 }
 
+RC Record::compareRawData(const void *data1, const void *data2, const AttrType &attrType) {
+    if (attrType == TypeReal) {
+        float f1 = *((float *) data1), f2 = *((float *) data2);
+        if (f1 > f2) return 1;
+        else if (f1 < f2) return -1;
+        else return 0;
+    } else if (attrType == TypeInt) {
+        int i1 = *((int *) data1), i2 = *((int *) data2);
+        return i1 - i2;
+    } else if (attrType == TypeVarChar) {
+        int l1, l2;
+        memcpy(&l1, data1, 4);
+        memcpy(&l2, data2, 4);
+        if (l1 == l2) {
+            return memcmp((char *) data1 + 4, (char *) data2 + 4, static_cast<size_t>(l1));
+        } else if (l1 > l2) {
+            int res = memcmp((char *) data1 + 4, (char *) data2 + 4, static_cast<size_t>(l2));
+            return res == 0 ? 1 : res;
+        } else {
+            int res = memcmp((char *) data1 + 4, (char *) data2 + 4, static_cast<size_t>(l1));
+            return res == 0 ? -1 : res;
+        }
+    } else {
+        throw std::invalid_argument("invalid attr type");
+    }
+}
+
 RecordSize
 Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<Attribute> &recordDescriptor, const void *data) {
     // get initial size: header size + field offset section size

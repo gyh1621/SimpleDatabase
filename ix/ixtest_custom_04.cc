@@ -89,7 +89,7 @@ void testLeafNodePage() {
         // NOTE: key returned by "buildVarcharKey" becomes "greater" with seed become bigger,
         //       so after inserting keys, keyIndex is same to i
         void *key2 = nodePage.getNthKey(i, TypeVarChar);
-        assert(NodePage::compare(key, key2, TypeVarChar) == 0);
+        assert(Record::compareRawData(key, key2, TypeVarChar) == 0);
         free(key2);
         nodePage.findKey(key, TypeVarChar, keyIndex);
         assert(keyIndex == i);
@@ -242,7 +242,7 @@ void testLeadNodePage2() {
         if (varcharLength == 0) varcharLength++;
         buildVarcharKey(i, varcharLength, key);
         void *key2 = nodePage1.getNthKey(i, TypeVarChar);
-        assert(NodePage::compare(key, key2, TypeVarChar) == 0);
+        assert(Record::compareRawData(key, key2, TypeVarChar) == 0);
         free(key2);
         nodePage1.findKey(key, TypeVarChar, keyIndex);
         assert(keyIndex == i);

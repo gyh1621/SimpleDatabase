@@ -146,11 +146,11 @@ void testNodePageCompare() {
     float f1 = 0.5, f2 = 0.3;
     memcpy(d1, &f1, sizeof(float));
     memcpy(d2, &f2, sizeof(float));
-    assert(NodePage::compare(d1, d2, TypeReal) > 0);
+    assert(Record::compareRawData(d1, d2, TypeReal) > 0);
     int i1 = 1, i2 = 2;
     memcpy(d1, &i1, sizeof(int));
     memcpy(d2, &i2, sizeof(int));
-    assert(NodePage::compare(d1, d2, TypeInt) < 0);
+    assert(Record::compareRawData(d1, d2, TypeInt) < 0);
     memset(d1, 0, 100);
     memset(d2, 0, 100);
     int l1 = 20, l2 = 20;
@@ -167,15 +167,15 @@ void testNodePageCompare() {
     }
     c = 'a' + 24;
     memcpy((char *) d2 + 23, &c, 1);
-    assert(NodePage::compare(d1, d2, TypeVarChar) < 0);
+    assert(Record::compareRawData(d1, d2, TypeVarChar) < 0);
     l2--;
     memcpy(d2, &l2, 4);
-    assert(NodePage::compare(d1, d2, TypeVarChar) > 0);
+    assert(Record::compareRawData(d1, d2, TypeVarChar) > 0);
     l2++;
     memcpy(d2, &l2, 4);
     c = 'a' + 23;
     memcpy((char *) d2 + 23, &c, 1);
-    assert(NodePage::compare(d1, d2, TypeVarChar) == 0);
+    assert(Record::compareRawData(d1, d2, TypeVarChar) == 0);
     free(d1);
     free(d2);
 }
