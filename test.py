@@ -35,7 +35,7 @@ test_orders = [
     "ixtest\_\d+",
     # "ixtest\_extra\_\d+",
     "ixtest\_p\d+",
-    #"ixtest\_pe\_\d+",
+    # "ixtest\_pe\_\d+",
     "ixtest\_custom\_\d+",
     "qetest\_\d+",
     "qetest\_p\d+",
@@ -45,19 +45,8 @@ cmd = "{test_path}"
 
 
 def run_command(cmd):
-    process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
-    )
-    output, error = process.communicate()
-    return output.decode(errors="ignore"), error.decode(errors="ignore"), process.returncode
-
-
-def print_test(test, output, err, code):
-    print("========= {} ==========".format(os.path.basename(test)))
-    print(output, end="")
-    if err:
-        print(err, end="")
-    print("Exit code:", code, end="\n\n")
+    result = subprocess.run(cmd, shell=True)
+    return result.returncode
 
 
 unordered_tests, fail_tests, success_tests = [], [], []
@@ -88,20 +77,20 @@ for test in tests:
 print("Start running tests...")
 for i, test in enumerate(tests):
     print("Running {}/{} tests...".format(i + 1, len(tests)), end="\r")
-    output, err, code = run_command(cmd.format(test_path=test))
-    if code != 0 or "test case failed" in output.lower():
-        fail_tests.append((test, output, err))
+    code = run_command(cmd.format(test_path=test))
+    if code != 0:
+        fail_tests.append(test)
     else:
-        success_tests.append((test, output, err))
-    print_test(test, output, err, code)
+        success_tests.append(test)
+    print("RETURN CODE", code, "\n")
 
 print("=======================================")
 print("Success Tests:")
-for test, _, _ in success_tests:
+for test in success_tests:
     print(os.path.basename(test))
 print("=======================================")
 print("Fail Tests:")
-for test, _, _ in fail_tests:
+for test in fail_tests:
     print(os.path.basename(test))
 print("=======================================")
 print(

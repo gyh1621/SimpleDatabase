@@ -584,6 +584,10 @@ void RelationManager::insertIdxEntry(const std::string &tableName, const std::ve
         }
         Record record(attrs, data);
         key = record.getFieldValue(i, attrLength);
+        if (key == nullptr) {
+            // null attr
+            continue;
+        }
         IndexManager::instance().openFile(fileName, ixFileHandle);
         IndexManager::instance().insertEntry(ixFileHandle, attrs[i], key, rid);
         IndexManager::instance().closeFile(ixFileHandle);
@@ -603,6 +607,9 @@ void RelationManager::deleteIdxEntry(const std::string &tableName, const std::ve
         }
         Record record(attrs, data);
         key = record.getFieldValue(i, attrLength);
+        if (key == nullptr) { // null
+            continue;
+        }
         IndexManager::instance().openFile(fileName, ixFileHandle);
         IndexManager::instance().deleteEntry(ixFileHandle, attrs[i], key, rid);
         IndexManager::instance().closeFile(ixFileHandle);
@@ -802,11 +809,21 @@ RC RelationManager::createIndex(const std::string &tableName, const std::string 
     rc = scan(tableName, "", NO_OP, NULL, attrNames, rmsi);
     assert(rc == 0);
     while(rmsi.getNextTuple(rid, data) != RM_EOF){
-        length = 0;
-        if (attribute.type == TypeVarChar) {
-            memcpy(&length, (char *)data + 1, sizeof(int));
+        bool nullBit = *(unsigned char *) ((char *) data) & ((unsigned) 1 << (unsigned) 7);
+        if (nullBit) {
+            // null
+            continue;
         }
-        length += sizeof(int);
+        length = 0;
+        switch (attribute.type) {
+            case TypeInt: length = sizeof(int); break;
+            case TypeReal: length = sizeof(float); break;
+            case TypeVarChar:
+                memcpy(&length, (char *)data + 1, sizeof(int));
+                length += sizeof(int);
+                break;
+            default: throw std::invalid_argument("unknown attr type.");
+        }
         key = malloc(length);
         memcpy((char *)key, (char *)data + 1, length);
         IndexManager::instance().insertEntry(ixFileHandle, attribute, key, rid);

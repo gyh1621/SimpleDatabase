@@ -40,8 +40,6 @@ public:
 
     static bool isAttrDataNull(const void* data);
 
-    static std::string getAttributeName(const std::string &relAttrName);
-    static std::vector<Attribute> getRecordDescriptor(const std::vector<Attribute> &attributes);
 };
 
 class TableScan : public Iterator {

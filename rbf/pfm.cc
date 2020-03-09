@@ -711,7 +711,7 @@ Record::Record(const std::vector<Attribute> &recordDescriptor, const void *data,
     offset1 += sizeof(FieldNumber);
 
     // record: jump over offset section
-    offset1 += recordDescriptor.size() * sizeof(FieldOffset);
+    offset1 = Record::RecordHeaderSize + recordDescriptor.size() * sizeof(FieldOffset);
 
     // data: jump over null indicator data
     offset2 += nullIndicatorSize;
@@ -915,7 +915,9 @@ int Record::readAttr(const std::vector<Attribute> &recordDescriptor, const std::
         if (recordDescriptor[i].name == attributeName) {
             break;
         }
-        lastFieldEndOffset = static_cast<size_t>(fieldEndOffset);
+        if (fieldEndOffset != 0) {
+            lastFieldEndOffset = static_cast<size_t>(fieldEndOffset);
+        }
     }
 
     // attribute not found
