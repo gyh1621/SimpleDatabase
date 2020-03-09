@@ -884,3 +884,7 @@ RC RM_IndexScanIterator::getNextEntry(RID &rid, void *key) {
         return rc;
     }
 }
+
+RC RM_IndexScanIterator::close() {
+    return ixScanIterator.close();
+}

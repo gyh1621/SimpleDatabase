@@ -632,12 +632,16 @@ bool Record::isFieldNull(const int &fieldIndex, const void *nullIndicatorData) {
 
 RC Record::compareRawData(const void *data1, const void *data2, const AttrType &attrType) {
     if (attrType == TypeReal) {
-        float f1 = *((float *) data1), f2 = *((float *) data2);
+        float f1, f2;
+        memcpy(&f1, data1, sizeof(float));
+        memcpy(&f2, data2, sizeof(float));
         if (f1 > f2) return 1;
         else if (f1 < f2) return -1;
         else return 0;
     } else if (attrType == TypeInt) {
-        int i1 = *((int *) data1), i2 = *((int *) data2);
+        int i1, i2;
+        memcpy(&i1, data1, sizeof(int));
+        memcpy(&i2, data2, sizeof(int));
         return i1 - i2;
     } else if (attrType == TypeVarChar) {
         int l1, l2;

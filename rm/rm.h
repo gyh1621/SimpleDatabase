@@ -47,7 +47,7 @@ public:
 
     // "key" follows the same format as in IndexManager::insertEntry()
     RC getNextEntry(RID &rid, void *key);    // Get next matching entry
-    RC close() { return -1; };                        // Terminate index scan
+    RC close();                        // Terminate index scan
 };
 
 // Relation Manager

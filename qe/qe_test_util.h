@@ -620,6 +620,8 @@ int populateLeftTable2() {
     }
 
     clean_up:
+    free(nullsIndicator);
+    free(nullsIndicator2);
     free(buf);
     return rc;
 }
@@ -663,6 +665,8 @@ int populateLeftTable3(std::vector<RID> &rids) {
     }
 
     clean_up:
+    free(nullsIndicator);
+    free(nullsIndicator3);
     free(buf);
     return rc;
 }
@@ -709,6 +713,8 @@ int updateLeftTable3(std::vector<RID> &rids) {
     rc = rm.deleteTuple("left3", rids[2]);
 
     clean_up:
+    free(nullsIndicator);
+    free(nullsIndicator3);
     free(buf);
     return rc;
 }
@@ -746,6 +752,7 @@ int populateLargeLeftTable() {
     }
 
     clean_up:
+    free(nullsIndicator);
     free(buf);
     return rc;
 }
@@ -783,6 +790,7 @@ int populateLargeLeftTable2() {
     }
 
     clean_up:
+    free(nullsIndicator);
     free(buf);
     return rc;
 }
@@ -819,6 +827,7 @@ int addRecordsToLargeLeftTable2() {
     }
 
     clean_up:
+    free(nullsIndicator);
     free(buf);
     return rc;
 }
@@ -894,6 +903,7 @@ int populateLargeRightTable() {
     }
 
     clean_up:
+    free(nullsIndicator);
     free(buf);
     return rc;
 }
@@ -931,6 +941,7 @@ int populateLargeRightTable2() {
     }
 
     clean_up:
+    free(nullsIndicator);
     free(buf);
     return rc;
 }
@@ -971,6 +982,7 @@ int populateLeftVarCharTable() {
     }
 
     clean_up:
+    free(nullsIndicator);
     free(buf);
     return rc;
 }
@@ -1011,6 +1023,7 @@ int populateRightVarCharTable() {
     }
 
     clean_up:
+    free(nullsIndicator);
     free(buf);
     return rc;
 }
@@ -1048,6 +1061,7 @@ int populateGroupTable() {
     }
 
     clean_up:
+    free(nullsIndicator);
     free(buf);
     return rc;
 }

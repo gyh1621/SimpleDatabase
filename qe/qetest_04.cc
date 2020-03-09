@@ -74,6 +74,7 @@ int testCase_4() {
         memcpy(b, (char *) data + offset + 1, len);
         b[len] = '\0';
         std::cerr << "  leftvarchar.B " << b << std::endl;
+        free(b);
 
         memset(data, 0, bufSize);
         actualResultCnt++;
