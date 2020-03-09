@@ -318,28 +318,7 @@ void RBFM_ScanIterator::setUp(FileHandle &fileHandle, const std::vector<Attribut
     this->projectedDescriptor.clear();
 
     // create projected descriptor and get condition attribute's index
-    // TODO: add test
-    unsigned i = 0;
-    for (const std::string& attrName: attributeNames) {
-        while (i != this->descriptor.size() ) {
-            if (attrName == this->descriptor[i].name) break;
-            Attribute attr;
-            attr.type = AttrType::TypeNull;
-            this->projectedDescriptor.push_back(attr);
-            i++;
-        }
-        if (i == this->descriptor.size()) throw std::invalid_argument("cannot create projected descriptor");
-        Attribute attr = this->descriptor[i];
-        this->projectedDescriptor.push_back(attr);
-        i++;
-    }
-    while (i != this->descriptor.size()) {
-        Attribute attr;
-        attr.type = AttrType::TypeNull;
-        this->projectedDescriptor.push_back(attr);
-        i++;
-    }
-    assert(this->projectedDescriptor.size() == this->descriptor.size() && "create projected descriptor failed");
+    Record::createProjectedDescriptor(this->descriptor, this->projectedDescriptor, attributeNames);
 }
 
 int RBFM_ScanIterator::compare(const void *recordAttrData, const FieldOffset &recordAttrLength) {

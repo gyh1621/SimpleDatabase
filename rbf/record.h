@@ -31,15 +31,16 @@ class Record {
     static RecordSize
     getRecordActualSize(const int &nullIndicatorSize, const std::vector<Attribute> &recordDescriptor, const void *data);
 
-    /* Get null indicator data's size by field number */
-    static int getNullIndicatorSize(const int &fieldNumber);
-
     /* Examine a field is null or not, *data is raw record data
      * Note: assume all arguments are valid.
      * */
     static bool isFieldNull(const int &fieldIndex, const void *nullIndicatorData);
 
 public:
+
+    /* Get null indicator data's size by field number */
+    static int getNullIndicatorSize(const int &fieldNumber);
+
     /* convert TypeVarchar data to string */
     static std::string getString(const void *data, AttrLength attrLength);
 
@@ -49,6 +50,12 @@ public:
     // if data2 < data2, return negative;
     // if data1 == data2, return 0;
     static RC compareRawData(const void *data1, const void *data2, const AttrType &attrType);
+
+    /* create projected descriptor */
+    static void createProjectedDescriptor(
+            const std::vector<Attribute> &descriptor,
+            std::vector<Attribute> &projectedDescriptor,
+            const std::vector<std::string> &projectedAttrNames);
 
 private:
     RecordSize size;

@@ -146,3 +146,23 @@ void Filter::getAttributes(std::vector<Attribute> &attrs) const {
     this->input->getAttributes(attrs);
 }
 
+
+Project::Project(Iterator *input, const std::vector<std::string> &attrNames) {
+    this->input = input;
+    input->getAttributes(attributes);
+    Record::createProjectedDescriptor(attributes, projAttributes, attrNames);
+}
+
+RC Project::getNextTuple(void *data) {
+    RC rc = input->getNextTuple(data);
+    if (rc == QE_EOF) {
+        return rc;
+    }
+
+    Record r(attributes, data);
+    r.convertToRawData(projAttributes, data);
+}
+
+void Project::getAttributes(std::vector<Attribute> &attrs) const {
+    attrs = projAttributes;
+}

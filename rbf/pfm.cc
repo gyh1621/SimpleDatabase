@@ -661,6 +661,31 @@ RC Record::compareRawData(const void *data1, const void *data2, const AttrType &
     }
 }
 
+void Record::createProjectedDescriptor(const std::vector<Attribute> &descriptor,
+        std::vector<Attribute> &projectedDescriptor, const std::vector<std::string> &projectedAttrNames) {
+    unsigned i = 0;
+    for (const std::string& attrName: projectedAttrNames) {
+        while (i != descriptor.size() ) {
+            if (attrName == descriptor[i].name) break;
+            Attribute attr;
+            attr.type = AttrType::TypeNull;
+            projectedDescriptor.push_back(attr);
+            i++;
+        }
+        if (i == descriptor.size()) throw std::invalid_argument("cannot create projected descriptor");
+        Attribute attr = descriptor[i];
+        projectedDescriptor.push_back(attr);
+        i++;
+    }
+    while (i != descriptor.size()) {
+        Attribute attr;
+        attr.type = AttrType::TypeNull;
+        projectedDescriptor.push_back(attr);
+        i++;
+    }
+    assert(projectedDescriptor.size() == descriptor.size() && "create projected descriptor failed");
+}
+
 RecordSize
 Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<Attribute> &recordDescriptor, const void *data) {
     // get initial size: header size + field offset section size
