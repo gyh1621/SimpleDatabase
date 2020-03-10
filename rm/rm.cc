@@ -814,16 +814,7 @@ RC RelationManager::createIndex(const std::string &tableName, const std::string 
             // null
             continue;
         }
-        length = 0;
-        switch (attribute.type) {
-            case TypeInt: length = sizeof(int); break;
-            case TypeReal: length = sizeof(float); break;
-            case TypeVarChar:
-                memcpy(&length, (char *)data + 1, sizeof(int));
-                length += sizeof(int);
-                break;
-            default: throw std::invalid_argument("unknown attr type.");
-        }
+        length = Record::getAttrDataLength(attribute.type, data, true);
         key = malloc(length);
         memcpy((char *)key, (char *)data + 1, length);
         IndexManager::instance().insertEntry(ixFileHandle, attribute, key, rid);

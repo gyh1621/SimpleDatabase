@@ -231,20 +231,7 @@ void* INLJoin::setKey(const std::vector<Attribute>& descriptor, const std::strin
             break;
         }
     }
-    AttrLength attrLength;
-    switch (descriptor[i].type) {
-        case TypeVarChar:
-            memcpy(&attrLength, (char *) key + 1, sizeof(AttrLength));
-            attrLength += sizeof(int);
-            break;
-        case TypeReal:
-            attrLength = sizeof(float);
-            break;
-        case TypeInt:
-            attrLength = sizeof(int);
-            break;
-        default: throw std::invalid_argument("unknown attr type.");
-    }
+    AttrLength attrLength = Record::getAttrDataLength(descriptor[i].type, key, true);
     void* returnedKey = malloc(attrLength);
     memcpy((char *) returnedKey, (char *) key + 1, attrLength);
     free(key);
@@ -261,60 +248,35 @@ void INLJoin::concatenate(const void *leftData, const void *rightData, const std
 
     Record leftRecord(leftDescriptor, leftData);
     Record rightRecord(rightDescriptor, rightData);
-    void* fieldValue = malloc(TUPLE_TMP_SIZE);
+    //void* fieldValue = malloc(TUPLE_TMP_SIZE);
     int dataOffset = nullPointerSize;
     for (int i = 0; i < leftDescriptor.size(); i++) {
-        leftRecord.readAttr(leftDescriptor, leftDescriptor[i].name, fieldValue);
-        if(isAttrDataNull(fieldValue)) {
+        AttrLength attrLength;
+        void* fieldValue = leftRecord.getFieldValue(i, attrLength);
+        if(fieldValue == nullptr) {
             int byteNum = i / 8;
             nullPointer[byteNum] |= ((char) 1) << (8 - (i % 8) - 1);
+            free(fieldValue);
             continue;
         }
-        switch (leftDescriptor[i].type) {
-            case TypeVarChar:
-                AttrLength length;
-                memcpy(&length, (char *) fieldValue + 1, sizeof(AttrLength));
-                memcpy((char *) data + dataOffset, (char *) fieldValue + 1, length + sizeof(AttrLength));
-                dataOffset += length + sizeof(AttrLength);
-                break;
-            case TypeInt:
-                memcpy((char *) data + dataOffset, (char  *) fieldValue + 1, sizeof(int));
-                dataOffset += sizeof(int);
-                break;
-            case TypeReal:
-                memcpy((char *) data + dataOffset, (char  *) fieldValue + 1, sizeof(float));
-                dataOffset += sizeof(float);
-                break;
-            default: throw std::invalid_argument("unknown attr type.");
-        }
+        memcpy((char *) data + dataOffset, fieldValue, attrLength);
+        dataOffset += attrLength;
+        free(fieldValue);
     }
 
     for (int i = 0; i < rightDescriptor.size(); i++) {
-        rightRecord.readAttr(rightDescriptor, rightDescriptor[i].name, fieldValue);
-        if(isAttrDataNull(fieldValue)) {
+        AttrLength attrLength;
+        void *fieldValue = rightRecord.getFieldValue(i, attrLength);
+        if(fieldValue == nullptr) {
             int byteNum = (i + leftDescriptor.size()) / 8;
             nullPointer[byteNum] |= ((char) 1) << (8 - ((i + leftDescriptor.size()) % 8) - 1);
+            free(fieldValue);
             continue;
         }
-        switch (rightDescriptor[i].type) {
-            case TypeVarChar:
-                AttrLength length;
-                memcpy(&length, (char *) fieldValue + 1, sizeof(AttrLength));
-                memcpy((char *) data + dataOffset, (char *) fieldValue + 1, length + sizeof(AttrLength));
-                dataOffset += length + sizeof(AttrLength);
-                break;
-            case TypeInt:
-                memcpy((char *) data + dataOffset, (char  *) fieldValue + 1, sizeof(int));
-                dataOffset += sizeof(int);
-                break;
-            case TypeReal:
-                memcpy((char *) data + dataOffset, (char  *) fieldValue + 1, sizeof(float));
-                dataOffset += sizeof(float);
-                break;
-            default: throw std::invalid_argument("unknown attr type.");
-        }
+        memcpy((char *) data + dataOffset, fieldValue, attrLength);
+        dataOffset += attrLength;
+        free(fieldValue);
     }
-    free(fieldValue);
 }
 
 void INLJoin::getAttributes(std::vector<Attribute> &attrs) const {

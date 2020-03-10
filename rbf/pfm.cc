@@ -686,6 +686,24 @@ void Record::createProjectedDescriptor(const std::vector<Attribute> &descriptor,
     assert(projectedDescriptor.size() == descriptor.size() && "create projected descriptor failed");
 }
 
+AttrLength Record::getAttrDataLength(const AttrType &attrType, const void *data, bool withNull) {
+    AttrLength length;
+    switch (attrType) {
+        case TypeInt: length = sizeof(int); break;
+        case TypeReal: length = sizeof(float); break;
+        case TypeVarChar:
+            if (withNull) {
+                memcpy(&length, (char *) data + 1, sizeof(int));
+            } else {
+                memcpy(&length, data, sizeof(int));
+            }
+            length += sizeof(int);
+            break;
+        default: throw std::invalid_argument("unknown attr type.");
+    }
+    return length;
+}
+
 RecordSize
 Record::getRecordActualSize(const int &nullIndicatorSize, const std::vector<Attribute> &recordDescriptor, const void *data) {
     // get initial size: header size + field offset section size

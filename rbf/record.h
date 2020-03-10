@@ -57,6 +57,9 @@ public:
             std::vector<Attribute> &projectedDescriptor,
             const std::vector<std::string> &projectedAttrNames);
 
+    /* get raw attr data length based on attr type */
+    static AttrLength getAttrDataLength(const AttrType &attrType, const void* data, bool withNull=false);
+
 private:
     RecordSize size;
     void *record;
