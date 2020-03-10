@@ -227,18 +227,30 @@ public:
 
 class INLJoin : public Iterator {
     // Index nested-loop join operator
+    Iterator *leftIn;
+    IndexScan *rightIn;
+    Condition condition;
+    std::vector<Attribute> leftDescriptor;
+    std::vector<Attribute> rightDescriptor;
+    std::vector<Attribute> concatenateDescriptor;
+    void* leftData;
+    RC leftTupleFinish;
+    RC rightTupleFinish;
+private:
+    static void concatenate(const void* leftData, const void* rightData, const std::vector<Attribute> &leftDescriptor, const std::vector<Attribute> &rightDescriptor, void* data);
+    static void* setKey(const std::vector<Attribute>& descriptor, const std::string &attrName, const void* leftData);
 public:
     INLJoin(Iterator *leftIn,           // Iterator of input R
             IndexScan *rightIn,          // IndexScan Iterator of input S
             const Condition &condition   // Join condition
-    ) {};
+    );
 
     ~INLJoin() override = default;
 
-    RC getNextTuple(void *data) override { return QE_EOF; };
+    RC getNextTuple(void *data) override;
 
     // For attribute in std::vector<Attribute>, name it as rel.attr
-    void getAttributes(std::vector<Attribute> &attrs) const override {};
+    void getAttributes(std::vector<Attribute> &attrs) const override;
 };
 
 // Optional for everyone. 10 extra-credit points
