@@ -194,6 +194,7 @@ class Project : public Iterator {
 
     Iterator *input;
     std::vector<Attribute> attributes;
+    std::vector<Attribute> projDescriptor;
     std::vector<Attribute> projAttributes;
 
 public:

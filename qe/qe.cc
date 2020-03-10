@@ -150,7 +150,16 @@ void Filter::getAttributes(std::vector<Attribute> &attrs) const {
 Project::Project(Iterator *input, const std::vector<std::string> &attrNames) {
     this->input = input;
     input->getAttributes(attributes);
-    Record::createProjectedDescriptor(attributes, projAttributes, attrNames);
+    Record::createProjectedDescriptor(attributes, projDescriptor, attrNames);
+    for (const std::string& attrName: attrNames) {
+        for (const Attribute& attr: attributes) {
+            if (attr.name == attrName) {
+                projAttributes.push_back(attr);
+                break;
+            }
+        }
+    }
+    assert(attrNames.size() == projAttributes.size());
 }
 
 RC Project::getNextTuple(void *data) {
@@ -160,7 +169,7 @@ RC Project::getNextTuple(void *data) {
     }
 
     Record r(attributes, data);
-    r.convertToRawData(projAttributes, data);
+    r.convertToRawData(projDescriptor, data);
 }
 
 void Project::getAttributes(std::vector<Attribute> &attrs) const {
