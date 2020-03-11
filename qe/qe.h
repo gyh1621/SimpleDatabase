@@ -311,13 +311,19 @@ public:
 
 class Aggregate : public Iterator {
     // Aggregation operator
+    Iterator *input;
+    Attribute aggAttr;
+    AggregateOp op;
+    std::vector<Attribute> inputDescriptor;
+    float returnedVal;
+    int count;
 public:
     // Mandatory
     // Basic aggregation
     Aggregate(Iterator *input,          // Iterator of input R
               const Attribute &aggAttr,        // The attribute over which we are computing an aggregate
               AggregateOp op            // Aggregate operation
-    ) {};
+    );
 
     // Optional for everyone: 5 extra-credit points
     // Group-based hash aggregation
@@ -329,12 +335,12 @@ public:
 
     ~Aggregate() = default;
 
-    RC getNextTuple(void *data) override { return QE_EOF; };
+    RC getNextTuple(void *data) override;
 
     // Please name the output attribute as aggregateOp(aggAttr)
     // E.g. Relation=rel, attribute=attr, aggregateOp=MAX
     // output attrname = "MAX(rel.attr)"
-    void getAttributes(std::vector<Attribute> &attrs) const override {};
+    void getAttributes(std::vector<Attribute> &attrs) const override;
 };
 
 #endif

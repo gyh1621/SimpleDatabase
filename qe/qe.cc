@@ -361,6 +361,105 @@ RC BNLJoin::readBlock(Iterator *input, std::map<std::string, std::vector<void *>
     return finish;
 }
 
+void INLJoin::getAttributes(std::vector<Attribute> &attrs) const {
+    attrs =  this->concatenateDescriptor;
+}
+
+Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, AggregateOp op) {
+    this->input = input;
+    this->aggAttr = aggAttr;
+    this->op = op;
+    this->input->getAttributes(this->inputDescriptor);
+    this->returnedVal = 0;
+    this->count = 0;
+}
+
+RC Aggregate::getNextTuple(void *data) {
+    void* scanData = malloc(TUPLE_TMP_SIZE);
+    while (input->getNextTuple(scanData) != QE_EOF) {
+        Record record(inputDescriptor, scanData);
+        AttrLength attrLength;
+        int i;
+        for (i = 0; i < inputDescriptor.size(); i++) {
+            if (inputDescriptor[i].name == aggAttr.name) {
+                break;
+            }
+        }
+        void* fieldValue = record.getFieldValue(i, attrLength);
+        if (fieldValue == nullptr) continue;
+        if (aggAttr.type == TypeInt) {
+            int intVal;
+            memcpy(&intVal, (char *) fieldValue, sizeof(int));
+            if (op == MIN) {
+                if (count == 0 || returnedVal > intVal) {
+                    returnedVal = intVal;
+                }
+            } else if (op == MAX) {
+                if (count == 0 || returnedVal < intVal) {
+                    returnedVal = intVal;
+                }
+            } else if (op == COUNT) {
+                returnedVal++;
+            } else if (op == SUM || op == AVG) {
+                returnedVal += intVal;
+            }
+            count++;
+        }
+        if (aggAttr.type == TypeReal) {
+            int floatVal;
+            memcpy(&floatVal, (char *) fieldValue, sizeof(int));
+            if (op == MIN) {
+                if (count == 0 || returnedVal > floatVal) {
+                    returnedVal = floatVal;
+                }
+            } else if (op == MAX) {
+                if (count == 0 || returnedVal < floatVal) {
+                    returnedVal = floatVal;
+                }
+            } else if (op == COUNT) {
+                returnedVal++;
+            } else if (op == SUM || op == AVG) {
+                returnedVal += floatVal;
+            }
+            count++;
+        }
+        free(fieldValue);
+    }
+
+    free(scanData);
+
+    if (count == 0) {
+        return QE_EOF;
+    }
+
+    if (op == AVG) {
+        returnedVal /= count;
+    }
+    count = 0;
+
+    auto* nullPointer = (unsigned char*)data;
+    nullPointer[0] = 0;
+    memcpy((char *) data + 1, &returnedVal, sizeof(float));
+    return 0;
+}
+
+void Aggregate::getAttributes(std::vector<Attribute> &attrs) const {
+    std::string attrName;
+    switch (op) {
+        case MIN: attrName += "MIN"; break;
+        case MAX: attrName += "MAX"; break;
+        case COUNT: attrName += "COUNT"; break;
+        case SUM: attrName += "SUM"; break;
+        case AVG: attrName += "AVG"; break;
+    }
+    attrName += "(" + aggAttr.name + ")";
+    Attribute attribute;
+    attribute.name = attrName;
+    attribute.type = TypeReal;
+    attribute.length = (AttrLength) 4;
+    attrs.push_back(attribute);
+}
+
 void BNLJoin::clearBlock(std::map<std::string, std::vector<void *>> &map) {
     for (auto & it : map) {
         for (auto pointer: it.second) {
@@ -427,3 +526,4 @@ BNLJoin::~BNLJoin() {
     if (rightData != nullptr) free(rightData);
     BNLJoin::clearBlock(leftRecords);
 }
+
