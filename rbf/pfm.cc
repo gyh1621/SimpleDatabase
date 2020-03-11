@@ -931,10 +931,22 @@ void *Record::getFieldValue(const FieldNumber &fieldIndex, AttrLength &fieldLeng
     return data;
 }
 
-std::string Record::getString(const void *data, AttrLength attrLength) {
+std::string Record::getString(const void *data, const AttrType &attrType, const AttrLength &attrLength) {
     std::string str;
-    for (AttrLength i = 0; i < attrLength; i++) {
-        str += *((char *) data + i);
+    if (attrType == TypeVarChar) {
+        for (AttrLength i = 0; i < attrLength; i++) {
+            str += *((char *) data + i);
+        }
+    } else if (attrType == TypeInt) {
+        int i;
+        memcpy(&i, data, sizeof(int));
+        str = std::to_string(i);
+    } else if (attrType == TypeReal) {
+        float i;
+        memcpy(&i, data, sizeof(float));
+        str = std::to_string(i);
+    } else {
+        throw std::invalid_argument("unknown attr type.");
     }
     return str;
 }

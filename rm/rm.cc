@@ -123,7 +123,7 @@ RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attr
         Record r(descriptor, data);
         Attribute attr;
         void *attrData = r.getFieldValue(1, attrLength);  // column-name
-        attr.name = Record::getString(attrData, attrLength);
+        attr.name = Record::getString(attrData, TypeVarChar, attrLength);
         free(attrData);
         attrData = r.getFieldValue(2, attrLength);  // column-type
         attr.type = *((AttrType *) attrData);
@@ -745,7 +745,7 @@ void RelationManager::printSysTable(const std::string &tableName) {
             free(attrData);
             attrData = r.getFieldValue(1, attrLength);
 
-            std::string table = Record::getString(attrData, attrLength);
+            std::string table = Record::getString(attrData, TypeVarChar, attrLength);
             std::cout << table << std::endl;
             free(attrData);
             free(recordData);

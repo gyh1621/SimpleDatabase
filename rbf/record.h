@@ -41,8 +41,9 @@ public:
     /* Get null indicator data's size by field number */
     static int getNullIndicatorSize(const int &fieldNumber);
 
-    /* convert TypeVarchar data to string */
-    static std::string getString(const void *data, AttrLength attrLength);
+    /* convert raw attribute data to string */
+    // here data is points to pure data, eg. for TypeVarchar, data points to char section
+    static std::string getString(const void *data, const AttrType &attrType, const AttrLength &attrLength);
 
     /* compare two data based on type */
     // when type is varchar, data points to "length + string"

@@ -4,6 +4,7 @@
 #include "../rbf/rbfm.h"
 #include "../rm/rm.h"
 #include "../ix/ix.h"
+#include <map>
 
 #define QE_EOF (-1)  // end of the index scan
 
@@ -39,6 +40,12 @@ public:
     virtual ~Iterator() = default;;
 
     static bool isAttrDataNull(const void* data);
+
+    static void concatenateDescriptor(const std::vector<Attribute> &descriptor1,
+                                      const std::vector<Attribute> &descriptor2, std::vector<Attribute> &resultDescriptor);
+
+    static void concatenateRecords(const void *leftData, const void *rightData, const std::vector<Attribute> &leftDescriptor,
+                                   const std::vector<Attribute> &rightDescriptor, void *data);
 
 };
 
@@ -210,20 +217,51 @@ public:
 
 class BNLJoin : public Iterator {
     // Block nested-loop join operator
+
+    Iterator *leftIn;
+    TableScan *rightIn;
+    Condition condition;
+    PageNum numPages;
+    void *rightData;
+    AttrType conditionAttrType;
+    FieldNumber rightConditionAttrIndex;
+    std::map<std::string, std::vector<void *>> leftRecords;
+    std::vector<Attribute> leftDescriptor;
+    std::vector<Attribute> rightDescriptor;
+    std::vector<Attribute> concatenateDescriptor;
+    RC leftInputFinish, rightInputFinish;
+    // when join, one right record may matches multiple left records in vector
+    // curLRIndex points to next left record matched
+    // when curLRIndex == -1, it means we need to get next right record
+    int curLRIndex;
+
+    static RC readBlock(Iterator *input,
+                        std::map<std::string, std::vector<void *>> &map,
+                        const std::string &attrName,
+                        const AttrType &attrType,
+                        const PageNum &numPages);
+    static void clearBlock(std::map<std::string, std::vector<void *>> &map);
+
+private:
+    /* get string format of current right record's condition attribute value */
+    std::string getRightKey();
+
+    /* release current block */
+
 public:
     BNLJoin(Iterator *leftIn,            // Iterator of input R
             TableScan *rightIn,           // TableScan Iterator of input S
             const Condition &condition,   // Join condition
-            const unsigned numPages       // # of pages that can be loaded into memory,
+            const PageNum numPages       // # of pages that can be loaded into memory,
             //   i.e., memory block size (decided by the optimizer)
-    ) {};
+    );
 
-    ~BNLJoin() override = default;;
+    ~BNLJoin() override;
 
-    RC getNextTuple(void *data) override { return QE_EOF; };
+    RC getNextTuple(void *data) override;
 
     // For attribute in std::vector<Attribute>, name it as rel.attr
-    void getAttributes(std::vector<Attribute> &attrs) const override {};
+    void getAttributes(std::vector<Attribute> &attrs) const override;
 };
 
 class INLJoin : public Iterator {
@@ -238,7 +276,6 @@ class INLJoin : public Iterator {
     RC leftTupleFinish;
     RC rightTupleFinish;
 private:
-    static void concatenate(const void* leftData, const void* rightData, const std::vector<Attribute> &leftDescriptor, const std::vector<Attribute> &rightDescriptor, void* data);
     static void* setKey(const std::vector<Attribute>& descriptor, const std::string &attrName, const void* leftData);
 public:
     INLJoin(Iterator *leftIn,           // Iterator of input R

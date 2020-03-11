@@ -337,8 +337,8 @@ int RBFM_ScanIterator::compare(const void *recordAttrData, const FieldOffset &re
         else if (recordValue > conditionValue) return 1;
         else return -1;
     } else if (conditionAttr.type == TypeVarChar) {
-        std::string conditionValue = Record::getString(this->value, conditionAttr.length);
-        std::string recordValue = Record::getString(recordAttrData, recordAttrLength);
+        std::string conditionValue = Record::getString(this->value, TypeVarChar, conditionAttr.length);
+        std::string recordValue = Record::getString(recordAttrData, TypeVarChar, recordAttrLength);
         return recordValue.compare(conditionValue);
     } else {
         throw std::invalid_argument("unknown attribute type");
