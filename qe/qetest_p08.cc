@@ -146,6 +146,8 @@ RC privateTestCase_8() {
     delete rightIn;
     delete anotherRightIn;
     free(data);
+    free(value1.data);
+    free(value2.data);
     return rc;
 }
 

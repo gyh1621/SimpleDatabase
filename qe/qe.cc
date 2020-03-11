@@ -254,6 +254,7 @@ RC INLJoin::getNextTuple(void *data) {
     while (rightTupleFinish == QE_EOF) {
         leftTupleFinish = leftIn->getNextTuple(leftData);
         if (leftTupleFinish == QE_EOF) {
+            free(rightData);
             return QE_EOF;
         }
         void* key;
@@ -287,6 +288,10 @@ void* INLJoin::setKey(const std::vector<Attribute>& descriptor, const std::strin
 
 void INLJoin::getAttributes(std::vector<Attribute> &attrs) const {
     attrs =  this->concatenateDescriptor;
+}
+
+INLJoin::~INLJoin() {
+    free(leftData);
 }
 
 
@@ -361,9 +366,6 @@ RC BNLJoin::readBlock(Iterator *input, std::map<std::string, std::vector<void *>
     return finish;
 }
 
-void INLJoin::getAttributes(std::vector<Attribute> &attrs) const {
-    attrs =  this->concatenateDescriptor;
-}
 
 Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, AggregateOp op) {
     this->input = input;

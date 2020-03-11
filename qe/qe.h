@@ -283,7 +283,7 @@ public:
             const Condition &condition   // Join condition
     );
 
-    ~INLJoin() override = default;
+    ~INLJoin() override;
 
     RC getNextTuple(void *data) override;
 

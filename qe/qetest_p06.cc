@@ -113,6 +113,8 @@ RC privateTestCase_6() {
     delete leftIn;
     delete rightIn1;
     delete rightIn2;
+    delete filter;
+    free(value1.data);
     free(data);
     return rc;
 }

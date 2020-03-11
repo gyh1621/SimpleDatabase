@@ -121,6 +121,8 @@ RC privateTestCase_7() {
     delete filter2;
     delete leftIn;
     delete rightIn;
+    free(value1.data);
+    free(value2.data);
     free(data);
     return rc;
 }

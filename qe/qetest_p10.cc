@@ -63,6 +63,7 @@ RC privateTestCase_10() {
     delete filter;
     delete input;
     free(data);
+    free(value2.data);
     return rc;
 
 }
