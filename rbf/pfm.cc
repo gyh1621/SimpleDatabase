@@ -104,6 +104,7 @@ std::streampos FileHandle::getFileSize() noexcept {
 RC FileHandle::readHiddenPage(){
     void *data = malloc(PAGE_SIZE);
     if (data == nullptr) throw std::bad_alloc();
+    memset(data, 0, PAGE_SIZE);
     RC rc = readPage(0, data, true);
     if (rc != 0) {
         free(data);
@@ -132,6 +133,7 @@ RC FileHandle::writeHiddenPage() {
     //void *data = malloc(sizeof(unsigned) * 3 + sizeof(char) + sizeof(PageNum));
     void *data = malloc(PAGE_SIZE);
     if (data == nullptr) throw std::bad_alloc();
+    memset(data, 0, PAGE_SIZE);
     *((char *) data) = 'Y';
     int offset = sizeof(char);
     memcpy((char *) data + offset, &readPageCounter, sizeof(Counter));
@@ -282,6 +284,7 @@ RC FileHandle::updateCurFSP(const PageNum &fspNum) {
             // std::cout << "init fsp data " << std::endl; // debug
             fspData = malloc(PAGE_SIZE);
             if (fspData == nullptr) throw std::bad_alloc();
+            memset(fspData, 0, PAGE_SIZE);
         } else {
             // need to save free space to disk first
             writePage(curFSPNum, fspData, true);

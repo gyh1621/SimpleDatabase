@@ -92,6 +92,7 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<
                                       const RID &rid, void *data) {
     void* targetPage = malloc(PAGE_SIZE);
     if (targetPage == nullptr) throw std::bad_alloc();
+    memset(targetPage, 0, PAGE_SIZE);
     RC rc;
 
     RID actualRID;
@@ -115,6 +116,7 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<
 RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                         const RID &rid) {
     void* targetPage = malloc(PAGE_SIZE);
+    memset(targetPage, 0, PAGE_SIZE);
     RC rc;
 
     RID actualRID;
@@ -219,6 +221,7 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const std::vect
                                          const RID &rid, const std::string &attributeName, void *data) {
     RC rc;
     void* targetRecord = malloc(PAGE_SIZE);
+    memset(targetRecord, 0, PAGE_SIZE);
     if (targetRecord == nullptr) throw std::bad_alloc();
     rc = readRecord(fileHandle, recordDescriptor, rid, targetRecord);
     if(rc != 0) return -1;
@@ -240,6 +243,7 @@ int RecordBasedFileManager::findRecordActualRID(FileHandle &fileHandle, RID &rid
     int result = -1;
     void *pageData = malloc(PAGE_SIZE);
     if (pageData == nullptr) throw std::bad_alloc();
+    memset(pageData, 0, PAGE_SIZE);
     while (result != 0) {
         // save original rid
         SlotNumber slot = rid.slotNum;

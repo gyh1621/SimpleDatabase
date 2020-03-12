@@ -116,6 +116,7 @@ RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attr
     assert(rc == 0);
 
     void *data = malloc(TUPLE_TMP_SIZE);
+    memset(data, 0, TUPLE_TMP_SIZE);
     RID rid;
 
     AttrLength attrLength;
@@ -724,6 +725,7 @@ void RelationManager::printSysTable(const std::string &tableName) {
     if (!isSysTable(tableName)) return;
     FileHandle fileHandle;
     void *pageData = malloc(PAGE_SIZE);
+    memset(pageData, 0, PAGE_SIZE);
     std::string fileName;
     TableID tableId;
     getTableInfo(tableName, tableId, fileName);
