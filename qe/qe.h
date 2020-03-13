@@ -344,6 +344,11 @@ class Aggregate : public Iterator {
     std::vector<Attribute> inputDescriptor;
     float returnedVal;
     int count;
+    bool eof;
+
+    /* compute result of MIN, MAX, COUNT, SUM */
+    void getNormalOpResult();
+
 public:
     // Mandatory
     // Basic aggregation

@@ -623,9 +623,10 @@ Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, AggregateOp op) 
     this->input->getAttributes(this->inputDescriptor);
     this->returnedVal = 0;
     this->count = 0;
+    eof = false;
 }
 
-RC Aggregate::getNextTuple(void *data) {
+void Aggregate::getNormalOpResult() {
     void* scanData = malloc(TUPLE_TMP_SIZE);
     while (input->getNextTuple(scanData) != QE_EOF) {
         Record record(inputDescriptor, scanData);
@@ -638,59 +639,57 @@ RC Aggregate::getNextTuple(void *data) {
         }
         void* fieldValue = record.getFieldValue(i, attrLength);
         if (fieldValue == nullptr) continue;
+        int floatVal;
         if (aggAttr.type == TypeInt) {
             int intVal;
             memcpy(&intVal, (char *) fieldValue, sizeof(int));
-            if (op == MIN) {
-                if (count == 0 || returnedVal > intVal) {
-                    returnedVal = intVal;
-                }
-            } else if (op == MAX) {
-                if (count == 0 || returnedVal < intVal) {
-                    returnedVal = intVal;
-                }
-            } else if (op == COUNT) {
-                returnedVal++;
-            } else if (op == SUM || op == AVG) {
-                returnedVal += intVal;
-            }
-            count++;
+            floatVal = intVal;
         }
-        if (aggAttr.type == TypeReal) {
-            int floatVal;
+        else if (aggAttr.type == TypeReal) {
             memcpy(&floatVal, (char *) fieldValue, sizeof(int));
-            if (op == MIN) {
-                if (count == 0 || returnedVal > floatVal) {
-                    returnedVal = floatVal;
-                }
-            } else if (op == MAX) {
-                if (count == 0 || returnedVal < floatVal) {
-                    returnedVal = floatVal;
-                }
-            } else if (op == COUNT) {
-                returnedVal++;
-            } else if (op == SUM || op == AVG) {
-                returnedVal += floatVal;
-            }
-            count++;
         }
+        else {
+            std::string error = "unsupported aggregation attr type: " + std::to_string(aggAttr.type);
+            throw std::invalid_argument(error);
+        }
+        if (op == MIN) {
+            if (count == 0 || returnedVal > floatVal) {
+                returnedVal = floatVal;
+            }
+        } else if (op == MAX) {
+            if (count == 0 || returnedVal < floatVal) {
+                returnedVal = floatVal;
+            }
+        } else if (op == COUNT) {
+            returnedVal++;
+        } else if (op == SUM || op == AVG) {
+            returnedVal += floatVal;
+        } else {
+            std::string error = "unsupported aggregation type: " + std::to_string(op);
+            throw std::invalid_argument(error);
+        }
+        count++;
         free(fieldValue);
     }
 
     free(scanData);
 
-    if (count == 0) {
+    if (op == AVG) {
+        returnedVal = count == 0 ? 0 : returnedVal / count;
+    }
+}
+
+RC Aggregate::getNextTuple(void *data) {
+    if (eof) {
         return QE_EOF;
     }
 
-    if (op == AVG) {
-        returnedVal /= count;
-    }
-    count = 0;
-
+    getNormalOpResult();
     auto* nullPointer = (unsigned char*)data;
     nullPointer[0] = 0;
     memcpy((char *) data + 1, &returnedVal, sizeof(float));
+    eof = true;
+
     return 0;
 }
 
@@ -702,6 +701,9 @@ void Aggregate::getAttributes(std::vector<Attribute> &attrs) const {
         case COUNT: attrName += "COUNT"; break;
         case SUM: attrName += "SUM"; break;
         case AVG: attrName += "AVG"; break;
+        default:
+            std::string error = "unsupported aggregation type: " + std::to_string(op);
+            throw std::invalid_argument(error);
     }
     attrName += "(" + aggAttr.name + ")";
     Attribute attribute;
