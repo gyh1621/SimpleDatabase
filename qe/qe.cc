@@ -8,7 +8,7 @@ bool Iterator::isAttrDataNull(const void *data) {
 }
 
 void Iterator::concatenateDescriptor(const std::vector<Attribute> &descriptor1,
-        const std::vector<Attribute> &descriptor2, std::vector<Attribute> &resultDescriptor) {
+                                     const std::vector<Attribute> &descriptor2, std::vector<Attribute> &resultDescriptor) {
     resultDescriptor.clear();
     for (const auto & attr : descriptor1) {
         resultDescriptor.push_back(attr);
@@ -156,7 +156,7 @@ RC Filter::getNextTuple(void *data) {
                     break;
             }
         }
-        // right data is NULL
+            // right data is NULL
         else if (Iterator::isAttrDataNull(rightData)) {
             switch (condition.op) {
                 case GT_OP:
@@ -167,7 +167,7 @@ RC Filter::getNextTuple(void *data) {
                 default: break;
             }
         }
-        // both not null
+            // both not null
         else {
             int res = Record::compareRawData((char *) leftData + 1, (char *) rightData + 1, condition.rhsValue.type);
             // left data > right data
@@ -180,7 +180,7 @@ RC Filter::getNextTuple(void *data) {
                     default: break;
                 }
             }
-            // left data < right data
+                // left data < right data
             else if (res < 0) {
                 switch (condition.op) {
                     case LT_OP:
@@ -190,7 +190,7 @@ RC Filter::getNextTuple(void *data) {
                     default: break;
                 }
             }
-            // left data == right data
+                // left data == right data
             else {
                 switch (condition.op) {
                     case LE_OP:
@@ -350,7 +350,7 @@ BNLJoin::BNLJoin(Iterator *leftIn, TableScan *rightIn, const Condition &conditio
 }
 
 RC BNLJoin::readBlock(Iterator *input, std::map<std::string, std::vector<void *>> &map,
-                        const std::string &attrName, const AttrType &attrType, const PageNum &numPages) {
+                      const std::string &attrName, const AttrType &attrType, const PageNum &numPages) {
     PageOffset currentSize = 0;
     void *rData = malloc(TUPLE_TMP_SIZE);
     std::vector<Attribute> descriptor;
@@ -724,7 +724,7 @@ Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, AggregateOp op) 
 }
 
 Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, const Attribute &groupAttr, AggregateOp op)
-                    : Aggregate(input, aggAttr, op) {
+        : Aggregate(input, aggAttr, op) {
     this->groupAttr = groupAttr;
     AttrType tmpType;
     Record::findAttrInDescriptor(inputDescriptor, groupAttr.name, groupAttrIndex, tmpType);
@@ -875,19 +875,27 @@ RC Aggregate::getNextTuple(void *data) {
         eof = true;
         return 0;
     } else {
+        std::string key;
+        float aggVal;
+        while (!groups.empty()) {
+            key = groups.begin()->first;
+            aggVal = groups.begin()->second;
+            if ((op == MIN && aggVal == std::numeric_limits<float>::max()) ||
+                (op == MAX && aggVal == std::numeric_limits<float>::min()) ||
+                (op == AVG && groupCount[key] == 0)) {
+                groups.erase(groups.begin());
+            } else {
+                break;
+            }
+        }
+
         if (groups.empty()) {
             eof = true;
             return QE_EOF;
         }
+
         auto* nullPointer = (unsigned char *) data;
         nullPointer[0] = 0;
-        std::string key = groups.begin()->first;
-        float aggVal = groups.begin()->second;
-        if (op == MIN && aggVal == std::numeric_limits<float>::max()) {
-            aggVal = 0;
-        } else if (op == MAX && aggVal == std::numeric_limits<float>::min()) {
-            aggVal = 0;
-        }
         // transform back key and copy to data
         unsigned offset = 1;
         if (groupAttr.type == TypeInt) {
@@ -917,6 +925,9 @@ RC Aggregate::getNextTuple(void *data) {
 
 void Aggregate::getAttributes(std::vector<Attribute> &attrs) const {
     std::string attrName;
+    if (groupAttr.type != TypeNull) {
+        attrName = groupAttr.name + " ";
+    }
     switch (op) {
         case MIN: attrName += "MIN"; break;
         case MAX: attrName += "MAX"; break;
@@ -931,7 +942,7 @@ void Aggregate::getAttributes(std::vector<Attribute> &attrs) const {
     Attribute attribute;
     attribute.name = attrName;
     attribute.type = TypeReal;
-    attribute.length = (AttrLength) 4;
+    attribute.length = (AttrLength) sizeof(float);
     attrs.push_back(attribute);
 }
 
