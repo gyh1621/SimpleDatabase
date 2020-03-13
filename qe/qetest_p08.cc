@@ -130,6 +130,7 @@ RC privateTestCase_8() {
         }
 
         memset(data, 0, bufSize);
+        free(b);
         actualResultCnt++;
     }
 

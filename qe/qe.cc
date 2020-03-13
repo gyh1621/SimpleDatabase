@@ -39,8 +39,20 @@ void Iterator::concatenateRecords(const void *leftData, const void *rightData, c
             free(fieldValue);
             continue;
         }
-        memcpy((char *) data + dataOffset, fieldValue, attrLength);
-        dataOffset += attrLength;
+        switch (leftDescriptor[i].type) {
+            case TypeInt:
+            case TypeReal:
+                memcpy((char *) data + dataOffset, fieldValue, attrLength);
+                dataOffset += attrLength;
+                break;
+            case TypeVarChar:
+                memcpy((char *) data + dataOffset, &attrLength, 4);
+                dataOffset += 4;
+                memcpy((char *) data + dataOffset, fieldValue, attrLength);
+                dataOffset += attrLength;
+                break;
+            default: throw std::invalid_argument("unknown attr type.");
+        }
         free(fieldValue);
     }
 
@@ -53,8 +65,20 @@ void Iterator::concatenateRecords(const void *leftData, const void *rightData, c
             free(fieldValue);
             continue;
         }
-        memcpy((char *) data + dataOffset, fieldValue, attrLength);
-        dataOffset += attrLength;
+        switch (rightDescriptor[i].type) {
+            case TypeInt:
+            case TypeReal:
+                memcpy((char *) data + dataOffset, fieldValue, attrLength);
+                dataOffset += attrLength;
+                break;
+            case TypeVarChar:
+                memcpy((char *) data + dataOffset, &attrLength, 4);
+                dataOffset += 4;
+                memcpy((char *) data + dataOffset, fieldValue, attrLength);
+                dataOffset += attrLength;
+                break;
+            default: throw std::invalid_argument("unknown attr type.");
+        }
         free(fieldValue);
     }
 }
@@ -346,7 +370,7 @@ RC BNLJoin::readBlock(Iterator *input, std::map<std::string, std::vector<void *>
         assert(res == 0);
 
         AttrLength attrLength = Record::getAttrDataLength(attrType, aData, true);
-        std::string attrVal = Record::getString((char *) aData + 1, attrType, attrLength);
+        std::string attrVal = Record::getAttrString((char *) aData + 1, attrType, attrLength);
 
         void *record = malloc(r.getSize());
         memcpy(record, rData, r.getSize());
@@ -364,6 +388,231 @@ RC BNLJoin::readBlock(Iterator *input, std::map<std::string, std::vector<void *>
     free(rData);
     free(aData);
     return finish;
+}
+
+ unsigned GHJoin::joinID = 0;
+
+GHJoin::GHJoin(Iterator *leftIn, Iterator *rightIn, const Condition &condition, const unsigned numPartitions) {
+    this->curJoinID = GHJoin::joinID++;
+    leftIn->getAttributes(this->leftDescriptor);
+    rightIn->getAttributes(this->rightDescriptor);
+    Record::getDescriptorString(leftDescriptor, leftDesNames);
+    Record::getDescriptorString(rightDescriptor, rightDesNames);
+    Iterator::concatenateDescriptor(leftDescriptor, rightDescriptor, this->concatenateDescriptor);
+    this->numPartitions = numPartitions;
+    this->condition = condition;
+    GHJoin::createPartitions("left", leftIn, condition.lhsAttr, numPartitions, curJoinID);
+    GHJoin::createPartitions("right", rightIn, condition.rhsAttr, numPartitions, curJoinID);
+    curParID = 0;
+    Record::findAttrInDescriptor(leftDescriptor, condition.lhsAttr, leftCondAttrIndex, condAttrType);
+    Record::findAttrInDescriptor(rightDescriptor, condition.rhsAttr, rightCondAttrIndex, condAttrType);
+    loadNextPartitions();
+}
+
+std::string GHJoin::getPartitionName(const std::string &partName, const unsigned &pID, const unsigned &joinID) {
+    return partName + "_p" + std::to_string(pID) + "_j" + std::to_string(joinID);
+}
+
+void GHJoin::createPartitions(const std::string &partName, Iterator *input, const std::string &attrName,
+                              const unsigned &numPartitions, const unsigned &jID) {
+    std::vector<FileHandle *> fileHandles;
+    for (auto i = 0; i < numPartitions; i++) {
+        fileHandles.push_back(new FileHandle());
+    }
+    // create partition files and get file handles
+    for (auto i = 0; i < numPartitions; i++) {
+        std::string parFileName = GHJoin::getPartitionName(partName, i, jID);
+        RC rc = RecordBasedFileManager::instance().createFile(parFileName);
+        assert(rc == 0 && "create partition file fails.");
+        FileHandle *fileHandle = fileHandles[i];
+        RecordBasedFileManager::instance().openFile(parFileName, *fileHandle);
+    }
+    // get record descriptor and attr index
+    std::vector<Attribute> descriptor;
+    input->getAttributes(descriptor);
+    FieldNumber attrIndex = descriptor.size();
+    AttrLength fieldLength;
+    AttrType attrType = TypeNull;
+    Record::findAttrInDescriptor(descriptor, attrName, attrIndex, attrType);
+    assert(attrIndex != descriptor.size());
+    // put records into partitions
+    void *data = malloc(TUPLE_TMP_SIZE);
+    memset(data, 0, TUPLE_TMP_SIZE);
+    RID rid;
+
+    while (input->getNextTuple(data) != QE_EOF) {
+        Record r(descriptor, data);
+        void *attrData = r.getFieldValue(attrIndex, fieldLength);
+        std::string attrStr = Record::getAttrString(attrData, attrType, fieldLength);
+        if (attrData != nullptr) free(attrData);
+        unsigned pID = GHJoin::hash(attrStr, numPartitions);
+        RC rc = RecordBasedFileManager::instance().insertRecord(*fileHandles[pID], descriptor, data, rid);
+        assert(rc == 0);
+    }
+    free(data);
+
+    // close file handles
+    for (auto fileHandle: fileHandles) {
+        RC rc = RecordBasedFileManager::instance().closeFile(*fileHandle);
+        assert(rc == 0);
+        delete(fileHandle);
+    }
+}
+
+unsigned GHJoin::hash(const std::string &str, const unsigned &maxValue) {
+    unsigned sum = 0;
+    for (char i : str) {
+        sum += i;
+    }
+    return sum % maxValue;
+}
+
+void GHJoin::clearHashTable(std::map<std::string, std::vector<void *>> &map) {
+    for (auto & it : map) {
+        for (auto pointer: it.second) {
+            free(pointer);
+        }
+    }
+    map.clear();
+}
+
+void GHJoin::createHashTable(FileHandle &fileHandle, const std::vector<Attribute> &descriptor,
+                             const FieldNumber &attrIndex, std::map<std::string, std::vector<void *>> &map) {
+    std::vector<std::string> desNames;
+    Record::getDescriptorString(descriptor, desNames);
+    RBFM_ScanIterator scanner;
+    RecordBasedFileManager::instance().scan(fileHandle, descriptor, "", NO_OP, nullptr, desNames, scanner);
+    RID rid;
+    void *data = malloc(TUPLE_TMP_SIZE);
+    AttrLength attrLength;
+    while (scanner.getNextRecord(rid, data) != RBFM_EOF) {
+        Record r(descriptor, data);
+        void *attrData = r.getFieldValue(attrIndex, attrLength);
+        std::string attrStr = Record::getAttrString(attrData, descriptor[attrIndex].type, attrLength);
+        void *record = malloc(r.getSize());
+        memcpy(record, data, r.getSize());
+        if (map.count(attrStr) == 0) {  // key not exist
+            std::vector<void *> records;
+            records.push_back(record);
+            map.insert(std::make_pair(attrStr, records));
+        } else {  // key exists
+            map[attrStr].push_back(record);
+        }
+        free(attrData);
+    }
+    free(data);
+}
+
+void GHJoin::loadNextPartitions() {
+    if (curParID >= numPartitions) throw std::invalid_argument("curParID exceeds range.");
+    std::string leftParName = GHJoin::getPartitionName("left", curParID, curJoinID);
+    std::string rightParName = GHJoin::getPartitionName("right", curParID, curJoinID);
+    // compare two partition size, find smaller one
+    FileHandle leftHandle, rightHandle;
+    RecordBasedFileManager::instance().openFile(leftParName, leftHandle);
+    RecordBasedFileManager::instance().openFile(rightParName, rightHandle);
+    PageNum leftParSize = leftHandle.getNumberOfPages(), rightParSize = rightHandle.getNumberOfPages();
+    RecordBasedFileManager::instance().closeFile(leftHandle);
+    RecordBasedFileManager::instance().closeFile(rightHandle);
+
+    if (parScanHandle.isOccupied()) RecordBasedFileManager::instance().closeFile(parScanHandle);
+    parScanner.close();
+    GHJoin::clearHashTable(records);
+
+    // create in-memory hash table for smaller partition, set up scanner for larger partition
+    FileHandle hashHandle;
+    if (leftParSize <= rightParSize) {
+        RecordBasedFileManager::instance().openFile(leftParName, hashHandle);
+        GHJoin::createHashTable(hashHandle, leftDescriptor, leftCondAttrIndex, records);
+        RecordBasedFileManager::instance().closeFile(hashHandle);
+        RecordBasedFileManager::instance().openFile(rightParName, parScanHandle);
+        RecordBasedFileManager::instance().scan(parScanHandle, rightDescriptor, "", NO_OP, nullptr, rightDesNames, parScanner);
+        curScannedPar = "right";
+    } else {
+        RecordBasedFileManager::instance().openFile(rightParName, hashHandle);
+        GHJoin::createHashTable(hashHandle, rightDescriptor, rightCondAttrIndex, records);
+        RecordBasedFileManager::instance().closeFile(hashHandle);
+        RecordBasedFileManager::instance().openFile(leftParName, parScanHandle);
+        RecordBasedFileManager::instance().scan(parScanHandle, leftDescriptor, "", NO_OP, nullptr, leftDesNames, parScanner);
+        curScannedPar = "left";
+    }
+}
+
+RC GHJoin::getNextTuple(void *data) {
+    if (curParID >= numPartitions) {
+        return QE_EOF;
+    }
+
+    // get next record from scanning partition
+    getNextScanRecord:
+    RID rid;
+    while (parScanner.getNextRecord(rid, data) == RBFM_EOF) {
+        // current partitions end, read next partition
+        curParID++;
+        // already iterated all partitions, join ends
+        if (curParID >= numPartitions) {
+            return QE_EOF;
+        }
+        // load next partitions
+        loadNextPartitions();
+    }
+
+    // find matches in hash table
+    AttrLength attrLength;
+    std::string attrStr;
+    RecordSize recordSize;
+    if (curScannedPar == "left") {
+        Record r(leftDescriptor, data);
+        void *attrData = r.getFieldValue(leftCondAttrIndex, attrLength);
+        attrStr = Record::getAttrString(attrData, condAttrType, attrLength);
+        free(attrData);
+        recordSize = r.getSize();
+    } else {
+        Record r(rightDescriptor, data);
+        void *attrData = r.getFieldValue(rightCondAttrIndex, attrLength);
+        attrStr = Record::getAttrString(attrData, condAttrType, attrLength);
+        free(attrData);
+        recordSize = r.getSize();
+    }
+    if (records.count(attrStr) != 0) {  // has match
+        void *matchedData = records[attrStr][0];
+        void *scannedData = malloc(recordSize);
+        memcpy(scannedData, data, recordSize);
+        if (curScannedPar == "left") {
+            Iterator::concatenateRecords(scannedData, matchedData, leftDescriptor, rightDescriptor, data);
+        } else {
+            Iterator::concatenateRecords(matchedData, scannedData, leftDescriptor, rightDescriptor, data);
+        }
+        records[attrStr].erase(records[attrStr].begin());
+        free(matchedData);
+        free(scannedData);
+        if (records[attrStr].empty()) {
+            records.erase(attrStr);
+        }
+    } else {  // no match
+        goto getNextScanRecord;
+    }
+
+    return 0;
+}
+
+void GHJoin::getAttributes(std::vector<Attribute> &attrs) const {
+    attrs = this->concatenateDescriptor;
+}
+
+GHJoin::~GHJoin() {
+    GHJoin::clearHashTable(records);
+    if (parScanHandle.isOccupied()) {
+        RecordBasedFileManager::instance().closeFile(parScanHandle);
+    }
+    parScanner.close();
+    // delete partition files
+    for (auto i = 0; i < numPartitions; i++) {
+        std::string parName = GHJoin::getPartitionName("left", i, curJoinID);
+        RecordBasedFileManager::instance().destroyFile(parName);
+        parName = GHJoin::getPartitionName("right", i, curJoinID);
+        RecordBasedFileManager::instance().destroyFile(parName);
+    }
 }
 
 
@@ -475,7 +724,7 @@ std::string BNLJoin::getRightKey() {
     Record r(rightDescriptor, rightData);
     AttrLength rightAttrDataLength;
     void *rightAttrData = r.getFieldValue(rightConditionAttrIndex, rightAttrDataLength);
-    std::string rightAttrStr = Record::getString(rightAttrData, conditionAttrType, rightAttrDataLength);
+    std::string rightAttrStr = Record::getAttrString(rightAttrData, conditionAttrType, rightAttrDataLength);
     free(rightAttrData);
     return rightAttrStr;
 }

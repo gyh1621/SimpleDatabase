@@ -38,12 +38,19 @@ class Record {
 
 public:
 
+    /* Get a specific attribute's index in the descriptor */
+    static void findAttrInDescriptor(const std::vector<Attribute> &descriptor, const std::string &attrName, FieldNumber &attrIndex, AttrType &attrType);
+
     /* Get null indicator data's size by field number */
     static int getNullIndicatorSize(const int &fieldNumber);
 
+
+    /* convert a descriptor to a string vector */
+    static void getDescriptorString(const std::vector<Attribute> &descriptor, std::vector<std::string> &attrNames);
+
     /* convert raw attribute data to string */
     // here data is points to pure data, eg. for TypeVarchar, data points to char section
-    static std::string getString(const void *data, const AttrType &attrType, const AttrLength &attrLength);
+    static std::string getAttrString(const void *data, const AttrType &attrType, const AttrLength &attrLength);
 
     /* compare two data based on type */
     // when type is varchar, data points to "length + string"

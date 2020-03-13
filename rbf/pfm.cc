@@ -633,6 +633,18 @@ bool Record::isFieldNull(const int &fieldIndex, const void *nullIndicatorData) {
     return fieldBit == 1;
 }
 
+void Record::findAttrInDescriptor(const std::vector<Attribute> &descriptor, const std::string &attrName, FieldNumber &attrIndex, AttrType &attrType) {
+    attrIndex = descriptor.size();
+    for (FieldNumber i = 0; i < descriptor.size(); i++) {
+        if (descriptor[i].name == attrName) {
+            attrIndex = i;
+            attrType = descriptor[i].type;
+            break;
+        }
+    }
+    assert(attrIndex != descriptor.size());
+}
+
 RC Record::compareRawData(const void *data1, const void *data2, const AttrType &attrType) {
     if (attrType == TypeReal) {
         float f1, f2;
@@ -934,7 +946,14 @@ void *Record::getFieldValue(const FieldNumber &fieldIndex, AttrLength &fieldLeng
     return data;
 }
 
-std::string Record::getString(const void *data, const AttrType &attrType, const AttrLength &attrLength) {
+void Record::getDescriptorString(const std::vector<Attribute> &descriptor, std::vector<std::string> &attrNames) {
+    for(const auto & i : descriptor){
+        attrNames.push_back(i.name);
+    }
+}
+
+std::string Record::getAttrString(const void *data, const AttrType &attrType, const AttrLength &attrLength) {
+    if (data == nullptr) return std::string("");
     std::string str;
     if (attrType == TypeVarChar) {
         for (AttrLength i = 0; i < attrLength; i++) {

@@ -294,19 +294,46 @@ public:
 // Optional for everyone. 10 extra-credit points
 class GHJoin : public Iterator {
     // Grace hash join operator
+
+    static unsigned joinID;
+
+    std::vector<Attribute> leftDescriptor, rightDescriptor, concatenateDescriptor;
+    std::vector<std::string> leftDesNames, rightDesNames;
+    Condition condition;
+    FieldNumber leftCondAttrIndex, rightCondAttrIndex;
+    AttrType condAttrType;
+    unsigned numPartitions;
+    unsigned curJoinID;
+    unsigned curParID;
+    std::map<std::string, std::vector<void *>> records;  // in-memory hash table holds records from smaller partition
+    std::string curScannedPar;  // partition name of current scanning partition, "left" or "right"
+    FileHandle parScanHandle;  // handle for larger partition
+    RBFM_ScanIterator parScanner;  // scanner of larger partition
+
+    static std::string getPartitionName(const std::string &partName, const unsigned &pID, const unsigned &joinID);
+    static void createPartitions(const std::string &partName, Iterator *input, const std::string &attrName,
+                                 const unsigned &numPartitions, const unsigned &jID);
+    static unsigned hash(const std::string &str, const unsigned &maxValue);
+
+    static void createHashTable(FileHandle &fileHandle, const std::vector<Attribute> &descriptor,
+                                const FieldNumber &attrIndex, std::map<std::string, std::vector<void *>> &map);
+    static void clearHashTable(std::map<std::string, std::vector<void *>> &map);
+
+    void loadNextPartitions();
+
 public:
     GHJoin(Iterator *leftIn,               // Iterator of input R
            Iterator *rightIn,               // Iterator of input S
            const Condition &condition,      // Join condition (CompOp is always EQ)
-           const unsigned numPartitions     // # of partitions for each relation (decided by the optimizer)
-    ) {};
+           unsigned numPartitions     // # of partitions for each relation (decided by the optimizer)
+    );
 
-    ~GHJoin() override = default;
+    ~GHJoin() override;
 
-    RC getNextTuple(void *data) override { return QE_EOF; };
+    RC getNextTuple(void *data) override;
 
     // For attribute in std::vector<Attribute>, name it as rel.attr
-    void getAttributes(std::vector<Attribute> &attrs) const override {};
+    void getAttributes(std::vector<Attribute> &attrs) const override;
 };
 
 class Aggregate : public Iterator {

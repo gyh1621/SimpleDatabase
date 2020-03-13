@@ -76,8 +76,6 @@ private:
     // delete meta info of a deleted table, always assume table exists
     // Return: same as getTableInfo
     RC deleteMetaInfo(const std::string &tableName);
-    // convert a descriptor to a string vector;
-    void getDescriptorString(const std::vector<Attribute> &descriptor, std::vector<std::string> &attrNames);
     // judge if a table is a system table
     bool isSysTable(const std::string &tableName);
     // create TypeVarchar raw data

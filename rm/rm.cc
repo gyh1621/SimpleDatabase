@@ -109,7 +109,7 @@ RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attr
     std::vector<Attribute> descriptor;
     getSysColTableAttributes(descriptor);
     std::vector<std::string> attrNames;
-    getDescriptorString(descriptor, attrNames);
+    Record::getDescriptorString(descriptor, attrNames);
 
     RM_ScanIterator rmsi;
     rc = scan(SYSCOLTABLE, "table-id", EQ_OP, &tableID, attrNames, rmsi);
@@ -124,7 +124,7 @@ RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attr
         Record r(descriptor, data);
         Attribute attr;
         void *attrData = r.getFieldValue(1, attrLength);  // column-name
-        attr.name = Record::getString(attrData, TypeVarChar, attrLength);
+        attr.name = Record::getAttrString(attrData, TypeVarChar, attrLength);
         free(attrData);
         attrData = r.getFieldValue(2, attrLength);  // column-type
         attr.type = *((AttrType *) attrData);
@@ -367,7 +367,7 @@ TableID RelationManager::getTableNumbers() {
     std::vector<Attribute> descriptor;
     getSysTableAttributes(descriptor);
     std::vector<std::string> attrNames;
-    getDescriptorString(descriptor, attrNames);
+    Record::getDescriptorString(descriptor, attrNames);
     rc = scan(SYSTABLE, "", NO_OP, NULL, attrNames, rmsi);
     assert(rc == 0);
 
@@ -469,7 +469,7 @@ RC RelationManager::deleteMetaInfo(const std::string &tableName) {
     std::vector<Attribute> descriptor;
     getSysTableAttributes(descriptor);
     std::vector<std::string> attrNames;
-    getDescriptorString(descriptor, attrNames);
+    Record::getDescriptorString(descriptor, attrNames);
     void *tableNameData = createVarcharData(tableName);
     rc = scan(SYSTABLE, "table-name", EQ_OP, tableNameData, attrNames, rmsi);
     assert(rc == 0);
@@ -483,7 +483,7 @@ RC RelationManager::deleteMetaInfo(const std::string &tableName) {
     rmsi.close();
     // delete record in sys column
     getSysColTableAttributes(descriptor);
-    getDescriptorString(descriptor, attrNames);
+    Record::getDescriptorString(descriptor, attrNames);
     rc = scan(SYSCOLTABLE, "table-id", EQ_OP, &id, attrNames, rmsi);
     assert(rc == 0);
     while(rmsi.getNextTuple(rid, data) != RM_EOF){
@@ -494,12 +494,6 @@ RC RelationManager::deleteMetaInfo(const std::string &tableName) {
     rmsi.close();
 
     return 0;
-}
-
-void RelationManager::getDescriptorString(const std::vector<Attribute> &descriptor, std::vector<std::string> &attrNames) {
-    for(const auto & i : descriptor){
-        attrNames.push_back(i.name);
-    }
 }
 
 RC RelationManager::getTableInfo(const std::string &tableName, TableID &id, std::string &fileName) {
@@ -525,7 +519,7 @@ RC RelationManager::getTableInfo(const std::string &tableName, TableID &id, std:
     std::vector<Attribute> descriptor;
     getSysTableAttributes(descriptor);
     std::vector<std::string> attrNames;
-    getDescriptorString(descriptor, attrNames);
+    Record::getDescriptorString(descriptor, attrNames);
     RC rc;
     void *tableNameData = createVarcharData(tableName);
     rc = scan(SYSTABLE, "table-name", EQ_OP, tableNameData, attrNames, rmsi);
@@ -628,7 +622,7 @@ RC RelationManager::getIndexFileName(const std::string &tableName, const Attribu
     std::vector<Attribute> descriptor;
     getSysIdxTableAttributes(descriptor);
     std::vector<std::string> attrNames;
-    getDescriptorString(descriptor, attrNames);
+    Record::getDescriptorString(descriptor, attrNames);
     RC rc;
     void *indexNameData = createVarcharData(indexName);
     rc = scan(SYSIDXTABLE, "index-name", EQ_OP, indexNameData, attrNames, rmsi);
@@ -698,7 +692,7 @@ void RelationManager::deleteIndexInfo(const std::string fileName) {
     std::vector<Attribute> descriptor;
     getSysIdxTableAttributes(descriptor);
     std::vector<std::string> attrNames;
-    getDescriptorString(descriptor, attrNames);
+    Record::getDescriptorString(descriptor, attrNames);
     void *tableNameData = createVarcharData(fileName);
     rc = scan(SYSIDXTABLE, "index-name", EQ_OP, tableNameData, attrNames, rmsi);
     assert(rc == 0);
@@ -747,7 +741,7 @@ void RelationManager::printSysTable(const std::string &tableName) {
             free(attrData);
             attrData = r.getFieldValue(1, attrLength);
 
-            std::string table = Record::getString(attrData, TypeVarChar, attrLength);
+            std::string table = Record::getAttrString(attrData, TypeVarChar, attrLength);
             std::cout << table << std::endl;
             free(attrData);
             free(recordData);

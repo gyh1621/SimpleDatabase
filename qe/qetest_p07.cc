@@ -107,6 +107,7 @@ RC privateTestCase_7() {
         std::cerr << "  rightvarchar.C " << *(float *) ((char *) data + offset + 1) << std::endl;
 
         memset(data, 0, bufSize);
+        free(b);
         actualResultCnt++;
 
     }
