@@ -624,6 +624,20 @@ Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, AggregateOp op) 
     this->returnedVal = 0;
     this->count = 0;
     eof = false;
+    groupAttr.type = TypeNull;
+    groupAttrIndex = inputDescriptor.size();
+    aggAttrIndex = inputDescriptor.size();
+    AttrType tmpType;
+    Record::findAttrInDescriptor(inputDescriptor, aggAttr.name, aggAttrIndex, tmpType);
+    assert(tmpType == aggAttr.type);
+}
+
+Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, const Attribute &groupAttr, AggregateOp op)
+                    : Aggregate(input, aggAttr, op) {
+    this->groupAttr = groupAttr;
+    AttrType tmpType;
+    Record::findAttrInDescriptor(inputDescriptor, groupAttr.name, groupAttrIndex, tmpType);
+    assert(tmpType == groupAttr.type);
 }
 
 void Aggregate::getNormalOpResult() {
@@ -631,13 +645,7 @@ void Aggregate::getNormalOpResult() {
     while (input->getNextTuple(scanData) != QE_EOF) {
         Record record(inputDescriptor, scanData);
         AttrLength attrLength;
-        int i;
-        for (i = 0; i < inputDescriptor.size(); i++) {
-            if (inputDescriptor[i].name == aggAttr.name) {
-                break;
-            }
-        }
-        void* fieldValue = record.getFieldValue(i, attrLength);
+        void* fieldValue = record.getFieldValue(aggAttrIndex, attrLength);
         if (fieldValue == nullptr) continue;
         int floatVal;
         if (aggAttr.type == TypeInt) {
@@ -679,18 +687,141 @@ void Aggregate::getNormalOpResult() {
     }
 }
 
+void Aggregate::getGroupResult() {
+    void *data = malloc(TUPLE_TMP_SIZE);
+    AttrLength aggAttrLength, groupAttrLength;
+    while (input->getNextTuple(data) != QE_EOF) {
+        Record r(inputDescriptor, data);
+        void *groupAttrData = r.getFieldValue(groupAttrIndex, groupAttrLength);
+        if (groupAttrData == nullptr) continue;
+        void *aggAttrData = r.getFieldValue(aggAttrIndex, aggAttrLength);
+        if (aggAttrData == nullptr) {
+            free(groupAttrData);
+            continue;
+        }
+
+        count++;
+
+        std::string key = Record::getAttrString(groupAttrData, groupAttr.type, groupAttrLength);
+        if (groups.count(key) == 0) {
+            if (op == MIN) {
+                groups.insert(std::make_pair(key, std::numeric_limits<float>::max()));
+            } else if (op == MAX) {
+                groups.insert(std::make_pair(key, std::numeric_limits<float>::min()));
+            } else if (op == SUM || op == COUNT) {
+                groups.insert(std::make_pair(key, 0));
+            } else if (op == AVG) {
+                groups.insert(std::make_pair(key, 0));
+                groupCount.insert(std::make_pair(key, 0));
+            } else {
+                throw std::invalid_argument("unsupported op type.");
+            }
+        }
+
+        float aggAttrVal;
+        if (aggAttr.type == TypeInt) {
+            int val;
+            memcpy(&val, aggAttrData, sizeof(int));
+            aggAttrVal = val;
+        } else if (aggAttr.type == TypeReal) {
+            memcpy(&aggAttrVal, aggAttrData, sizeof(float));
+        } else {
+            throw std::invalid_argument("unsupported agg attr type.");
+        }
+
+        if (op == MIN) {
+            if (groups[key] > aggAttrVal) {
+                groups[key] = aggAttrVal;
+            }
+        } else if (op == MAX) {
+            if (groups[key] < aggAttrVal) {
+                groups[key] = aggAttrVal;
+            }
+        } else if (op == SUM) {
+            groups[key] += aggAttrVal;
+        } else if (op == COUNT) {
+            groups[key]++;
+        } else if (op == AVG) {
+            groups[key] += aggAttrVal;
+            groupCount[key]++;
+        }
+
+        free(groupAttrData);
+        free(aggAttrData);
+    }
+    free(data);
+
+    if (op == AVG) {
+        for (auto & group : groups) {
+            std::string key = group.first;
+            float sum = group.second;
+            int gCount = groupCount[key];
+            group.second = gCount == 0 ? 0 : sum / gCount;
+        }
+    }
+}
+
 RC Aggregate::getNextTuple(void *data) {
     if (eof) {
         return QE_EOF;
     }
 
-    getNormalOpResult();
-    auto* nullPointer = (unsigned char*)data;
-    nullPointer[0] = 0;
-    memcpy((char *) data + 1, &returnedVal, sizeof(float));
-    eof = true;
+    if (groupAttr.type == TypeNull) {
+        getNormalOpResult();
+    } else {
+        if (groups.empty()) {
+            getGroupResult();
+        }
+    }
 
-    return 0;
+    if (count == 0) {
+        eof = true;
+        return QE_EOF;
+    } else if (groupAttr.type == TypeNull) {
+        auto* nullPointer = (unsigned char*) data;
+        nullPointer[0] = 0;
+        memcpy((char *) data + 1, &returnedVal, sizeof(float));
+        eof = true;
+        return 0;
+    } else {
+        if (groups.empty()) {
+            eof = true;
+            return QE_EOF;
+        }
+        auto* nullPointer = (unsigned char *) data;
+        nullPointer[0] = 0;
+        std::string key = groups.begin()->first;
+        float aggVal = groups.begin()->second;
+        if (op == MIN && aggVal == std::numeric_limits<float>::max()) {
+            aggVal = 0;
+        } else if (op == MAX && aggVal == std::numeric_limits<float>::min()) {
+            aggVal = 0;
+        }
+        // transform back key and copy to data
+        unsigned offset = 1;
+        if (groupAttr.type == TypeInt) {
+            int intKey = std::stoi(key);
+            memcpy((char *) data + offset, &intKey, sizeof(int));
+            offset += sizeof(int);
+        } else if (groupAttr.type == TypeReal) {
+            float floatKey = std::stof(key);
+            memcpy((char *) data + offset, &floatKey, sizeof(float));
+            offset += sizeof(float);
+        } else if (groupAttr.type == TypeVarChar) {
+            unsigned charLength = key.size();
+            memcpy((char *) data + offset, &charLength, 4);
+            offset += 4;
+            for (auto &c: key) {
+                memcpy((char *) data + offset, &c, sizeof(char));
+                offset += sizeof(char);
+            }
+        }
+        // copy agg value
+        memcpy((char *) data + offset, &aggVal, sizeof(float));
+        // pop key
+        groups.erase(groups.begin());
+        return 0;
+    }
 }
 
 void Aggregate::getAttributes(std::vector<Attribute> &attrs) const {

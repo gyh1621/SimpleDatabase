@@ -339,15 +339,22 @@ public:
 class Aggregate : public Iterator {
     // Aggregation operator
     Iterator *input;
-    Attribute aggAttr;
+    Attribute aggAttr, groupAttr;
+    FieldNumber aggAttrIndex, groupAttrIndex;
     AggregateOp op;
     std::vector<Attribute> inputDescriptor;
     float returnedVal;
     int count;
     bool eof;
 
-    /* compute result of MIN, MAX, COUNT, SUM */
+    std::map<std::string, float> groups;
+    std::map<std::string, int> groupCount;  // only used when op is avg
+
+    /* compute result of MIN, MAX, COUNT, SUM, AVG */
     void getNormalOpResult();
+
+    /* compute result of Group */
+    void getGroupResult();
 
 public:
     // Mandatory
@@ -363,7 +370,7 @@ public:
               const Attribute &aggAttr,           // The attribute over which we are computing an aggregate
               const Attribute &groupAttr,         // The attribute over which we are grouping the tuples
               AggregateOp op              // Aggregate operation
-    ) {};
+    );
 
     ~Aggregate() = default;
 
