@@ -94,7 +94,7 @@ public:
     // if null field, return nullptr
     void *getFieldValue(const FieldNumber &fieldIndex, AttrLength &fieldLength);
 
-    // read attribute into raw data with one byte of null indicator put ahead
+    // read attribute into raw data with one byte of null indicator put ahead and varchar with 4 bytes ahead
     // return: 0 - success, -1 - target attribute name not found
     int readAttr(const std::vector<Attribute> &recordDescriptor, const std::string &attributeName, void* data);
 };

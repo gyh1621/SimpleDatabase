@@ -345,18 +345,22 @@ BNLJoin::BNLJoin(Iterator *leftIn, TableScan *rightIn, const Condition &conditio
     assert(this->rightConditionAttrIndex != this->rightDescriptor.size());
     rightData = malloc(TUPLE_TMP_SIZE);
     curLRIndex = -1;
-    leftInputFinish = rightInputFinish = QE_EOF + 1;
+    rightInputFinish = QE_EOF + 1;
+    leftInputFinish = BNLJoin::readBlock(leftIn, leftRecords, condition.lhsAttr, conditionAttrType, numPages);
 }
 
 RC BNLJoin::readBlock(Iterator *input, std::map<std::string, std::vector<void *>> &map,
                         const std::string &attrName, const AttrType &attrType, const PageNum &numPages) {
     PageOffset currentSize = 0;
     void *rData = malloc(TUPLE_TMP_SIZE);
-    void *aData = malloc(TUPLE_TMP_SIZE);
     std::vector<Attribute> descriptor;
     input->getAttributes(descriptor);
 
     RC finish = QE_EOF;
+    FieldNumber attrIndex;
+    AttrType tmpType;
+    Record::findAttrInDescriptor(descriptor, attrName, attrIndex, tmpType);
+    assert(tmpType == attrType);
     while (currentSize <= numPages * PAGE_SIZE) {
         RC rc = input->getNextTuple(rData);
         if (rc == QE_EOF) {
@@ -366,11 +370,11 @@ RC BNLJoin::readBlock(Iterator *input, std::map<std::string, std::vector<void *>
         finish = QE_EOF + 1;  // not reach end
 
         Record r(descriptor, rData);
-        RC res = r.readAttr(descriptor, attrName, aData);
-        assert(res == 0);
 
-        AttrLength attrLength = Record::getAttrDataLength(attrType, aData, true);
-        std::string attrVal = Record::getAttrString((char *) aData + 1, attrType, attrLength);
+        AttrLength attrLength;
+        void *aData = r.getFieldValue(attrIndex, attrLength);
+        std::string attrVal = Record::getAttrString(aData, attrType, attrLength);
+        free(aData);
 
         void *record = malloc(r.getSize());
         memcpy(record, rData, r.getSize());
@@ -386,11 +390,78 @@ RC BNLJoin::readBlock(Iterator *input, std::map<std::string, std::vector<void *>
     }
 
     free(rData);
-    free(aData);
     return finish;
 }
 
- unsigned GHJoin::joinID = 0;
+void BNLJoin::clearBlock(std::map<std::string, std::vector<void *>> &map) {
+    for (auto & it : map) {
+        for (auto pointer: it.second) {
+            free(pointer);
+        }
+    }
+    map.clear();
+}
+
+std::string BNLJoin::getRightKey() {
+    Record r(rightDescriptor, rightData);
+    AttrLength rightAttrDataLength;
+    void *rightAttrData = r.getFieldValue(rightConditionAttrIndex, rightAttrDataLength);
+    std::string rightAttrStr = Record::getAttrString(rightAttrData, conditionAttrType, rightAttrDataLength);
+    free(rightAttrData);
+    return rightAttrStr;
+}
+
+RC BNLJoin::getNextTuple(void *data) {
+    if (leftInputFinish == QE_EOF) return QE_EOF;
+    // get next right record
+    while (curLRIndex == -1) {
+        rightInputFinish = rightIn->getNextTuple(rightData);
+        // one round of right input finished, reset right input and get next right data
+        if (rightInputFinish == QE_EOF) {
+            rightIn->setIterator();
+            rightInputFinish = rightIn->getNextTuple(rightData);
+            // read new left block
+            BNLJoin::clearBlock(leftRecords);
+            leftInputFinish = BNLJoin::readBlock(leftIn, leftRecords, condition.lhsAttr, conditionAttrType, numPages);
+        }
+        // empty right input
+        if (rightInputFinish == QE_EOF) {
+            leftInputFinish = QE_EOF;
+            return QE_EOF;
+        }
+        // left input reaches end, join ends
+        if (leftInputFinish == QE_EOF) {
+            return QE_EOF;
+        }
+        // see if current right data has match in the block
+        std::string rightKey = getRightKey();
+        // has match
+        if (leftRecords.count(rightKey) != 0) {
+            curLRIndex = 0;
+        }
+    }
+
+    std::string rightKey = getRightKey();
+    void *leftData = leftRecords[rightKey][curLRIndex];
+    Iterator::concatenateRecords(leftData, rightData, leftDescriptor, rightDescriptor, data);
+    curLRIndex++;
+    if (curLRIndex == leftRecords[rightKey].size()) {
+        curLRIndex = -1;
+    }
+    return 0;
+}
+
+void BNLJoin::getAttributes(std::vector<Attribute> &attrs) const {
+    attrs = concatenateDescriptor;
+}
+
+BNLJoin::~BNLJoin() {
+    if (rightData != nullptr) free(rightData);
+    BNLJoin::clearBlock(leftRecords);
+}
+
+
+unsigned GHJoin::joinID = 0;
 
 GHJoin::GHJoin(Iterator *leftIn, Iterator *rightIn, const Condition &condition, const unsigned numPartitions) {
     this->curJoinID = GHJoin::joinID++;
@@ -844,70 +915,4 @@ void Aggregate::getAttributes(std::vector<Attribute> &attrs) const {
     attrs.push_back(attribute);
 }
 
-void BNLJoin::clearBlock(std::map<std::string, std::vector<void *>> &map) {
-    for (auto & it : map) {
-        for (auto pointer: it.second) {
-            free(pointer);
-        }
-    }
-    map.clear();
-}
-
-std::string BNLJoin::getRightKey() {
-    Record r(rightDescriptor, rightData);
-    AttrLength rightAttrDataLength;
-    void *rightAttrData = r.getFieldValue(rightConditionAttrIndex, rightAttrDataLength);
-    std::string rightAttrStr = Record::getAttrString(rightAttrData, conditionAttrType, rightAttrDataLength);
-    free(rightAttrData);
-    return rightAttrStr;
-}
-
-RC BNLJoin::getNextTuple(void *data) {
-    if (leftInputFinish) return QE_EOF;
-    // get next right record
-    while (curLRIndex == -1) {
-        rightInputFinish = rightIn->getNextTuple(rightData);
-        // one round of right input finished, reset right input and get next right data
-        if (rightInputFinish == QE_EOF) {
-            rightIn->setIterator();
-            rightInputFinish = rightIn->getNextTuple(rightData);
-            // read new left block
-            BNLJoin::clearBlock(leftRecords);
-            leftInputFinish = BNLJoin::readBlock(leftIn, leftRecords, condition.lhsAttr, conditionAttrType, numPages);
-        }
-        // empty right input
-        if (rightInputFinish == QE_EOF) {
-            leftInputFinish = QE_EOF;
-            return QE_EOF;
-        }
-        // left input reaches end, join ends
-        if (leftInputFinish == QE_EOF) {
-            return QE_EOF;
-        }
-        // see if current right data has match in the block
-        std::string rightKey = getRightKey();
-        // has match
-        if (leftRecords.count(rightKey) != 0) {
-            curLRIndex = 0;
-        }
-    }
-
-    std::string rightKey = getRightKey();
-    void *leftData = leftRecords[rightKey][curLRIndex];
-    Iterator::concatenateRecords(leftData, rightData, leftDescriptor, rightDescriptor, data);
-    curLRIndex++;
-    if (curLRIndex == leftRecords[rightKey].size()) {
-        curLRIndex = -1;
-    }
-    return 0;
-}
-
-void BNLJoin::getAttributes(std::vector<Attribute> &attrs) const {
-    attrs = concatenateDescriptor;
-}
-
-BNLJoin::~BNLJoin() {
-    if (rightData != nullptr) free(rightData);
-    BNLJoin::clearBlock(leftRecords);
-}
 
