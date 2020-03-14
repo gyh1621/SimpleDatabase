@@ -5,6 +5,7 @@
 #include "../rm/rm.h"
 #include "../ix/ix.h"
 #include <map>
+#include <random>
 
 #define QE_EOF (-1)  // end of the index scan
 
@@ -294,26 +295,25 @@ public:
 // Optional for everyone. 10 extra-credit points
 class GHJoin : public Iterator {
     // Grace hash join operator
-
-    static unsigned joinID;
-
     std::vector<Attribute> leftDescriptor, rightDescriptor, concatenateDescriptor;
     std::vector<std::string> leftDesNames, rightDesNames;
     Condition condition;
     FieldNumber leftCondAttrIndex, rightCondAttrIndex;
     AttrType condAttrType;
     unsigned numPartitions;
-    unsigned curJoinID;
+    std::string curJoinID;
     unsigned curParID;
     std::map<std::string, std::vector<void *>> records;  // in-memory hash table holds records from smaller partition
     std::string curScannedPar;  // partition name of current scanning partition, "left" or "right"
     FileHandle parScanHandle;  // handle for larger partition
     RBFM_ScanIterator parScanner;  // scanner of larger partition
+    bool parFilesDeleted;
 
-    static std::string getPartitionName(const std::string &partName, const unsigned &pID, const unsigned &joinID);
+    static std::string getPartitionName(const std::string &partName, const unsigned &pID, const std::string &joinID);
     static void createPartitions(const std::string &partName, Iterator *input, const std::string &attrName,
-                                 const unsigned &numPartitions, const unsigned &jID);
+                                 const unsigned &numPartitions, const std::string &jID);
     static unsigned hash(const std::string &str, const unsigned &maxValue);
+    static void deletePartitions(const std::string &partName, const unsigned &numPartitions, const std::string &jID);
 
     static void createHashTable(FileHandle &fileHandle, const std::vector<Attribute> &descriptor,
                                 const FieldNumber &attrIndex, std::map<std::string, std::vector<void *>> &map);

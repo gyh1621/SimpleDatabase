@@ -461,10 +461,8 @@ BNLJoin::~BNLJoin() {
 }
 
 
-unsigned GHJoin::joinID = 0;
-
 GHJoin::GHJoin(Iterator *leftIn, Iterator *rightIn, const Condition &condition, const unsigned numPartitions) {
-    this->curJoinID = GHJoin::joinID++;
+    this->curJoinID = std::to_string(std::mt19937(std::random_device()())());
     leftIn->getAttributes(this->leftDescriptor);
     rightIn->getAttributes(this->rightDescriptor);
     Record::getDescriptorString(leftDescriptor, leftDesNames);
@@ -474,18 +472,19 @@ GHJoin::GHJoin(Iterator *leftIn, Iterator *rightIn, const Condition &condition, 
     this->condition = condition;
     GHJoin::createPartitions("left", leftIn, condition.lhsAttr, numPartitions, curJoinID);
     GHJoin::createPartitions("right", rightIn, condition.rhsAttr, numPartitions, curJoinID);
+    parFilesDeleted = false;
     curParID = 0;
     Record::findAttrInDescriptor(leftDescriptor, condition.lhsAttr, leftCondAttrIndex, condAttrType);
     Record::findAttrInDescriptor(rightDescriptor, condition.rhsAttr, rightCondAttrIndex, condAttrType);
     loadNextPartitions();
 }
 
-std::string GHJoin::getPartitionName(const std::string &partName, const unsigned &pID, const unsigned &joinID) {
-    return partName + "_p" + std::to_string(pID) + "_j" + std::to_string(joinID);
+std::string GHJoin::getPartitionName(const std::string &partName, const unsigned &pID, const std::string &joinID) {
+    return partName + "_p" + std::to_string(pID) + "_j" + joinID;
 }
 
 void GHJoin::createPartitions(const std::string &partName, Iterator *input, const std::string &attrName,
-                              const unsigned &numPartitions, const unsigned &jID) {
+                              const unsigned &numPartitions, const std::string &jID) {
     std::vector<FileHandle *> fileHandles;
     for (auto i = 0; i < numPartitions; i++) {
         fileHandles.push_back(new FileHandle());
@@ -527,6 +526,16 @@ void GHJoin::createPartitions(const std::string &partName, Iterator *input, cons
         RC rc = RecordBasedFileManager::instance().closeFile(*fileHandle);
         assert(rc == 0);
         delete(fileHandle);
+    }
+}
+
+void GHJoin::deletePartitions(const std::string &partName, const unsigned &numPartitions, const std::string &jID) {
+    // delete partition files
+    for (auto i = 0; i < numPartitions; i++) {
+        std::string parName = GHJoin::getPartitionName("left", i, jID);
+        RecordBasedFileManager::instance().destroyFile(parName);
+        parName = GHJoin::getPartitionName("right", i, jID);
+        RecordBasedFileManager::instance().destroyFile(parName);
     }
 }
 
@@ -611,6 +620,11 @@ void GHJoin::loadNextPartitions() {
 
 RC GHJoin::getNextTuple(void *data) {
     if (curParID >= numPartitions) {
+        if (!parFilesDeleted) {
+            GHJoin::deletePartitions("left", numPartitions, curJoinID);
+            GHJoin::deletePartitions("right", numPartitions, curJoinID);
+            parFilesDeleted = true;
+        }
         return QE_EOF;
     }
 
@@ -622,6 +636,11 @@ RC GHJoin::getNextTuple(void *data) {
         curParID++;
         // already iterated all partitions, join ends
         if (curParID >= numPartitions) {
+            if (!parFilesDeleted) {
+                GHJoin::deletePartitions("left", numPartitions, curJoinID);
+                GHJoin::deletePartitions("right", numPartitions, curJoinID);
+                parFilesDeleted = true;
+            }
             return QE_EOF;
         }
         // load next partitions
@@ -678,11 +697,10 @@ GHJoin::~GHJoin() {
     }
     parScanner.close();
     // delete partition files
-    for (auto i = 0; i < numPartitions; i++) {
-        std::string parName = GHJoin::getPartitionName("left", i, curJoinID);
-        RecordBasedFileManager::instance().destroyFile(parName);
-        parName = GHJoin::getPartitionName("right", i, curJoinID);
-        RecordBasedFileManager::instance().destroyFile(parName);
+    if (curParID >= numPartitions) {
+        GHJoin::deletePartitions("left", numPartitions, curJoinID);
+        GHJoin::deletePartitions("right", numPartitions, curJoinID);
+        parFilesDeleted = true;
     }
 }
 
