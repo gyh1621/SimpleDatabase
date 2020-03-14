@@ -373,6 +373,7 @@ RC BNLJoin::readBlock(Iterator *input, std::map<std::string, std::vector<void *>
 
         AttrLength attrLength;
         void *aData = r.getFieldValue(attrIndex, attrLength);
+        if (aData == nullptr) continue;
         std::string attrVal = Record::getAttrString(aData, attrType, attrLength);
         free(aData);
 
@@ -513,8 +514,9 @@ void GHJoin::createPartitions(const std::string &partName, Iterator *input, cons
     while (input->getNextTuple(data) != QE_EOF) {
         Record r(descriptor, data);
         void *attrData = r.getFieldValue(attrIndex, fieldLength);
+        if (attrData == nullptr) continue;
         std::string attrStr = Record::getAttrString(attrData, attrType, fieldLength);
-        if (attrData != nullptr) free(attrData);
+        free(attrData);
         unsigned pID = GHJoin::hash(attrStr, numPartitions);
         RC rc = RecordBasedFileManager::instance().insertRecord(*fileHandles[pID], descriptor, data, rid);
         assert(rc == 0);

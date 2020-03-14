@@ -39,6 +39,7 @@ test_orders = [
     "ixtest\_custom\_\d+",
     "qetest\_\d+",
     "qetest\_p\d+",
+    "qetest\_custom\_\d+",
 ]
 
 cmd = "{test_path}"
