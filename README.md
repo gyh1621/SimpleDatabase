@@ -1,38 +1,38 @@
-[![codecov](https://codecov.io/gh/UCI-Chenli-teaching/cs222p-winter20-team-14/branch/master/graph/badge.svg?token=PwCwV5ftgO)](https://codecov.io/gh/UCI-Chenli-teaching/cs222p-winter20-team-14)
+[![codecov](https://codecov.io/gh/gyh1621/DatabaseSystem/branch/master/graph/badge.svg?token=PwCwV5ftgO)](https://codecov.io/gh/gyh1621/DatabaseSystem)
 
+Course work for cs222p.
 
-By default you should not change those functions of pre-defined in the given .h files.
-If you think some changes are really necessary, please contact us first.
+### Overview
 
-If you are not using CLion and want to use command line make tool:
+![implemented](./course-details/implemented.png)
 
- - Modify the "CODEROOT" variable in makefile.inc to point to the root
-  of your code base if you can't compile the code.
- 
-- Implement the extension of Relation Manager (RM) to coordinate data files and the associated indices of the data files.
+### Detail
 
-- Also, implement Query Engine (QE)
+#### Record-Based File Manager (RBF)
+[Description](./course-details/project1-description.pdf)
 
-   Go to folder "qe" and type in:
+Implemented all requirements and also introduces the free space pages to save all data pages' remain spaces.
 
-    make clean
-    make
-    ./qetest_01
+- [ ] hidden pages' reading times not counted
 
-   The program should work. But it does nothing until you implement the extension of RM and QE.
+#### Relation Manager (RM)
+[Description](./course-details/project2-description.pdf)
 
-- If you want to try CLI:
+Implemented all basic requirements.
 
-   Go to folder "cli" and type in:
+- [ ] add/drop attributes after a table is created
 
-   make clean
-   make
-   ./cli_example_01
+#### Index Manager (IX)
+[Description](./course-details/project3.pdf)
 
-   or
+Implemented all basic requirements.
 
-   ./start
+- [ ] B+ tree deletion (current is lazy-deletion meaning no adjustment performed when deleting an entry)
+- [ ] Entries that share the same key and that may span multiple pages is not supported
 
-   The program should work. But you need to implement the extension of RM and QE to run this program properly. Note that examples in the cli directory are provided for your convenience. These examples are not the public test cases.
+#### Query Engine (QE)
+[Description](./course-details/project4.pdf)
 
-- By default you should not change those classes defined in rm/rm.h and qe/qe.h. If you think some changes are really necessary, please contact us first.
+Implemented all requirements.
+
+- [ ] Join only supports equal condition.

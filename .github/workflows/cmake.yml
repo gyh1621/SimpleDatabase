@@ -17,8 +17,6 @@ jobs:
         run: python3 test.py
       - name: create coverage report
         run: |
-          # TODO: REMOVE TOKEN WHEN REPO BECOMES PUBLIC
-          export CODECOV_TOKEN="286355d1-b466-4450-89c5-a69e72264cb9"
           sudo apt install lcov
           lcov --capture --directory . --output-file coverage.info
           lcov --remove coverage.info '/usr/*' --output-file coverage.info
